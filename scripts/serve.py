@@ -9,6 +9,13 @@ class NoCache(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
+class Server(http.server.ThreadingHTTPServer):
+    # The module graph opens ~20 connections at once; the default backlog of 5 drops some, and the browser then
+    # stalls for seconds on SYN retries.
+    request_queue_size = 128
+    daemon_threads = True
+
+
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8848
-    http.server.ThreadingHTTPServer(("127.0.0.1", port), NoCache).serve_forever()
+    Server(("127.0.0.1", port), NoCache).serve_forever()
