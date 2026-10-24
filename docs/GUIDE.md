@@ -88,7 +88,7 @@ b′ = −2qs·a + (ps + qr)·b − 2pr·c
 c′ = q²a − pq·b + p²c
 ```
 
-Two facts make this the right action, both proved in Lean (`Starscape/Action.lean`) and in exterior-room's `Polynomial/StarscapeProofs.lean`:
+Two facts make this the right action, both proved in Lean (`Starscape/Action.lean`) and in lean-starscape's `Polynomial/StarscapeProofs.lean`:
 
 1. `Δ(ρ(g)f) = det(g)² · Δ(f)`. So for `det g = 1` every shell `Δ = const` is preserved, and ρ(g) is a Lorentz transformation of display space. This is the identification PSL₂(ℝ) ≅ SO⁺(2,1).
 2. `(ρ(g)Q)(g·v) = det(g)² · Q(v)`. So if `Q` vanishes at `v`, then `ρ(g)Q` vanishes at `g·v`. **Roots move by g.**
@@ -250,7 +250,7 @@ Gestures, chosen to feel obvious once tried:
 
 **The bridge.** `lake exe starscape-bridge` writes `data/lean-bridge.json`, containing counts, every reduced form and class number for `|Δ| < 400`, ρ images and pair normals. `test/lean-bridge.test.js` checks the browser's exact arithmetic against it. The direction matters. Lean is the reference, the browser is tested against it, and the hosted app needs no server.
 
-**Building on exterior-room.** The live, Lean-backed service in `alok/exterior-room` already proves several of these facts for its own `Point`/`Matrix`. Rather than fork it, PR [alok/exterior-room#1](https://github.com/alok/exterior-room/pull/1) adds `Polynomial/StarscapeProofs.lean` on top of its definitions: roots move by g in its general `det²` form, Farey edges are Δ = 1, edges map to edges, and the fixtures (which depend on no axioms at all). Its `apply` is exactly ρ, and its `incidence` is exactly B.
+**Building on lean-starscape.** The live, Lean-backed service in `alok/lean-starscape` already proves several of these facts for its own `Point`/`Matrix`. Rather than fork it, PR [alok/lean-starscape#1](https://github.com/alok/lean-starscape/pull/1) adds `Polynomial/StarscapeProofs.lean` on top of its definitions: roots move by g in its general `det²` form, Farey edges are Δ = 1, edges map to edges, and the fixtures (which depend on no axioms at all). Its `apply` is exactly ρ, and its `incidence` is exactly B.
 
 **A natural next proof (FloatLib).** The shader computes Δ and plane membership in float32. On the drawn lattice every intermediate is an integer below 2²⁴, so those float computations are exact. FloatLib could prove that, which would connect the GPU picture to the exact integers.
 

@@ -68,8 +68,15 @@ attributes). Uniforms carry ρ(g) in display coordinates, the morph parameter
 (lattice → Klein screen → Poincaré → half-plane) and the eye position, so
 dragging, morphing and moving cost nothing on the CPU.
 
-## Open (waiting on Dots)
+## Resolved (from Dots, 2026-10-24 02:16–02:18)
 
-- The exact meaning of the egocentric, Flatland-esque view.
-- Alok's UI ideas and the blog post.
-- Lean plan for `alok/exterior-room`.
+- Egocentric view: "really feel what it's like to live in the space", "essentially point-wise as if you were living
+  inside a flatland and not just looking from above, at a plane." Built as Inside: the Poincaré disk centered on
+  you, true hyperbolic walking, eye height down to a Flatlander's 1D retina.
+- Points: "make all the points extremely small … they have color, but they also have brightness"; "the scale is
+  only relative to other objects." Built as the default points style: color = |Δ| as a spectrum, brightness =
+  light received at the origin.
+- WebXR should look as close as possible to visionOS: in-world glass windows, ornaments, hover glow.
+- Audience: Katherine Stange (vertigo: browser first, no forced motion), Charles Arnal and Vivien Cabannes (Meta).
+- Lean: the same Starscape scope. Here, a standalone package with a static exact bridge; on top of the live service
+  (now `alok/lean-starscape`), PR #1 adds kernel-checked facts.
