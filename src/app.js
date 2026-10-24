@@ -456,6 +456,7 @@ function updateShellReadout() {
 
 const hud = new InsideHud({ state, rig, stars });
 function setView(mode) {
+  document.body.classList.toggle('inside', mode === 'inside');
   // From the origin a star needs a smaller radius: only the nearest few resolve, the rest are points of light.
   tw.set('r0', { origin: 0.045, inside: 0.04, outside: 0.11 }[mode], 1.2);
   for (const m of ['outside', 'origin', 'inside']) $('v-' + m).setAttribute('aria-pressed', String(mode === m));

@@ -130,7 +130,9 @@ body.split::after { content: ''; position: fixed; top: 0; bottom: 0; right: var(
 body.split #dock { right: calc(var(--pane-w) + var(--gutter)); max-width: calc(100vw - var(--pane-w) - 2 * var(--gutter) - 220px); top: max(14px, env(safe-area-inset-top)); bottom: auto; }
 body.split #inspector { top: 120px; }
 body.split #inspector { right: calc(var(--pane-w) + var(--gutter)); }
-body.split #inside-hud { max-width: calc(100vw - var(--pane-w) - 2 * var(--gutter)); }
+body.split #inside-hud { max-width: calc(100vw - var(--pane-w) - 2 * var(--gutter)); top: 124px; }
+body.split .readout { left: calc((100vw - var(--pane-w)) / 2); }
+body.inside .readout { display: none; }
 body.split .sheet { right: calc(var(--pane-w) + var(--gutter)); }
 body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels { display: none; }
 
