@@ -10,8 +10,9 @@ const $ = id => document.getElementById(id);
 const RETINA_WIDTH = 720;
 
 export class InsideHud {
-  constructor({ state, rig, stars }) {
-    Object.assign(this, { state, rig, stars });
+  /** `heading()` gives your facing direction in the plane's own coordinates (standard orientation). */
+  constructor({ state, rig, stars, heading }) {
+    Object.assign(this, { state, rig, stars, heading });
     this.cutting = new CuttingSequence();
     this.retina = $('retina'); this.ctx = this.retina.getContext('2d');
     this.lastText = ''; this.lastRetina = '';
@@ -31,11 +32,11 @@ export class InsideHud {
   update() {
     const { state, rig } = this, g = state.g;
     const here = G.act(G.inverse(g), { x: 0, y: 1 });
-    const [hx, hz] = rig.heading(), heading = Math.atan2(hz, hx);
-    // A Farey vertex is on your left when its rim point lies on the left of your heading (left = up × forward).
+    const [hx, hz] = this.heading(), heading = Math.atan2(hz, hx);
+    // In the standard orientation your left is your heading turned a quarter counterclockwise: (−h_v, h_u).
     const leftOf = t => {
       const [bu, bv] = Mo.boundaryPoint(G.actReal(g, t));
-      return bu * hz - bv * hx > 0;
+      return -bu * hz + bv * hx > 0;
     };
     this.cutting.update(here, leftOf);
     // The rim point straight ahead, pulled back to the base picture: where this geodesic ends.
@@ -64,9 +65,9 @@ export class InsideHud {
     this.retina.width = W; this.retina.height = 1;
     const img = this.ctx.createImageData(W, 1);
     for (let x = 0; x < W; x++) {
-      // Column x looks toward heading + φ, φ = 0 in the middle, your left on the left. Retina bin k covers the
-      // directions [2πk/W, 2π(k+1)/W).
-      const theta = heading + ((x + 0.5) / W - 0.5) * 2 * Math.PI;
+      // Column x looks toward heading − φ, φ = 0 in the middle: left of center is counterclockwise of your
+      // heading, which is your left. Retina bin k covers the directions [2πk/W, 2π(k+1)/W).
+      const theta = heading - ((x + 0.5) / W - 0.5) * 2 * Math.PI;
       const k = ((Math.floor((theta / (2 * Math.PI)) * W) % W) + W) % W;
       for (let c = 0; c < 3; c++) img.data[4 * x + c] = Math.min(255, 255 * view.color[3 * k + c]);
       img.data[4 * x + 3] = 255;

@@ -44,7 +44,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
       world.scale.setScalar(TABLE_SCALE);
       world.position.set(0, mode === 'immersive-ar' ? 0.95 : 1.0, -0.9);
     } else {
-      world.scale.setScalar(FLOOR_SCALE);
+      world.scale.set(-FLOOR_SCALE, FLOOR_SCALE, FLOOR_SCALE);   // mirrored: see setWorldFrame in app.js
       // The plane Y = h in display units lies on the floor; lifting it raises it toward the eyes.
       const target = planeLiftTarget * (head.y - 0.02);
       planeLift += (target - planeLift) * Math.min(1, dt * 3);
@@ -60,7 +60,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     if (d < 0.004) return;
     // At the center of the Poincaré disk of radius R (meters), ds = 2|dp|/R in hyperbolic units.
     const R = H * FLOOR_SCALE, step = (2 * d) / R;
-    setG(walk(state.g, Math.atan2(dz, dx), step));
+    setG(walk(state.g, Math.atan2(dz, -dx), step));   // the plane is mirrored in X
     center.x = head.x; center.z = head.z;
   }
 
@@ -330,7 +330,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
         const ax = gp.axes[2] ?? 0, ay = gp.axes[3] ?? 0;
         if (Math.hypot(ax, ay) > 0.15) {
           const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(headQ);
-          const heading = Math.atan2(fwd.z, fwd.x), angle = heading + Math.atan2(ax, -ay);
+          const heading = Math.atan2(fwd.z, -fwd.x), angle = heading - Math.atan2(ax, -ay);
           setG(walk(state.g, angle, 1.0 * dt * Math.min(1, Math.hypot(ax, ay))));
         }
       }

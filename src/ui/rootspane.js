@@ -127,11 +127,13 @@ export class RootsPane {
   /** Draw the stars into the pane's viewport with the shared renderer (scissored). */
   render(renderer, scene) {
     const { rect, camera, world, H } = this, v = this.view(), aspect = rect.w / rect.h;
-    const s = world.scale.x;
+    const s = world.scale.y;
     camera.left = -v.half * aspect * s; camera.right = v.half * aspect * s; camera.top = v.half * s; camera.bottom = -v.half * s;
+    // Look up at the screen from below, as the eye at the origin does: then +X is right and +Z (toward ∞) is up,
+    // the usual orientation of the half-plane. From above, the picture would be mirrored.
     camera.up.set(0, 0, 1);
     const target = world.localToWorld(new THREE.Vector3(v.cx, H, v.cz));
-    camera.position.copy(target).add(new THREE.Vector3(0, 50 * s, 0));
+    camera.position.copy(target).add(new THREE.Vector3(0, -50 * s, 0));
     camera.lookAt(target);
     camera.updateProjectionMatrix();
     const u = this.stars.uniforms, saved = { m: u.uMorph.value, h: u.uViewportH.value, rho: u.uRho.value.clone(), e: u.uExposure.value };

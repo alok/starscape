@@ -70,7 +70,10 @@ const tw = new Tweens({ reducedMotion: rig.reducedMotion, onChange: markDirty })
 Object.entries({ a_upper: 1, a_lower: 0.8, a_exterior: 0.75, a_null: 1, morph: 0, cone: 1, screen: 0, r0: 0.11, floor: 0 })
   .forEach(([k, v]) => tw.set(k, v, 0));
 
-const stars = new StarField(F.buildLattice({ ball: BALL, depth: 96 }), { palette: state.palette });
+// Phones get her full sky (a + c ≤ 57, about 100k stars); desktops can go denser.
+const MAX_DEPTH = isMobile ? 57 : 96;
+if (isMobile) $('s-depth').querySelector('option[value="80"]')?.remove();
+const stars = new StarField(F.buildLattice({ ball: BALL, depth: MAX_DEPTH }), { palette: state.palette });
 stars.uniforms.uH.value = H; stars.uniforms.uHP.value = HP;
 stars.setRho(G.displayPushforward(state.g));
 const cone = makeCone(8), screenDisk = makeScreen(H), selection = makeSelection();
@@ -123,7 +126,7 @@ function syncUniforms() {
   u.uShell.value = state.shellK;
   u.uPlaneOn.value = state.plane ? 1 : 0;
   if (state.plane) u.uPlane.value.set(...state.plane.normal);
-  u.uUnit.value = world.scale.x;
+  u.uUnit.value = world.scale.y;
   cone.visible = state.show.cone && tw.get('cone') > 0.01;
   cone.userData.uniforms.uOpacity.value = tw.get('cone');
   cone.userData.uniforms.uRho.value.set(...G.displayPushforward(state.g));
@@ -143,7 +146,7 @@ function updateSelectionMarker() {
     if (st.kind === 2 && m > 0.5) { sprite.visible = false; return null; }
     sprite.position.set(...st.position);
     const d = camera.position.distanceTo(world.localToWorld(sprite.position.clone()));
-    const rpx = (st.radius * world.scale.x * camera.projectionMatrix.elements[5] * 0.5 * renderer.domElement.height) / Math.max(d, 1e-3);
+    const rpx = (st.radius * world.scale.y * camera.projectionMatrix.elements[5] * 0.5 * renderer.domElement.height) / Math.max(d, 1e-3);
     sprite.scale.setScalar((Math.max(minPx, Math.min(34, 2.2 * rpx + 10)) / renderer.domElement.height) * 2 * dpr());
     sprite.visible = true;
     return st;
@@ -203,7 +206,7 @@ function frame(now) {
   updatePlaneView();
   updateSelectionMarker();
   if (!presenting) updateLabels();
-  if (rig.mode === 'inside') { hud.update(); const [hx, hz] = rig.heading(); pane.inside = { heading: Math.atan2(hz, hx) }; }
+  if (rig.mode === 'inside') { hud.update(); const [hx, hz] = localHeading(); pane.inside = { heading: Math.atan2(hz, hx) }; }
   if (presenting || !state.split) {
     renderer.setScissorTest(false);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
@@ -385,8 +388,9 @@ function stepKeys(dt) {
   if (turn) rig.look(-turn, 0);
   const forward = k('w') + k('arrowup') - k('s') - k('arrowdown'), side = k('d') - k('a');
   if (forward || side) {
-    const [hx, hz] = rig.heading();
-    setG(walk(state.g, Math.atan2(hz, hx) + Math.atan2(side, forward), 1.1 * dt));
+    // In the plane's own (standard) orientation your right is clockwise from your heading.
+    const [hx, hz] = localHeading();
+    setG(walk(state.g, Math.atan2(hz, hx) - Math.atan2(side, forward), 1.1 * dt));
   }
   return true;
 }
@@ -454,16 +458,22 @@ function updateShellReadout() {
 // ---------------------------------------------------------------------------------------------------------------
 // Vantage points: Outside, Origin, Inside
 
-const hud = new InsideHud({ state, rig, stars });
+/** Your heading in the plane's own coordinates (the world is mirrored in X inside). */
+function localHeading() { const [hx, hz] = rig.heading(); return world.scale.x < 0 ? [-hx, hz] : [hx, hz]; }
+const hud = new InsideHud({ state, rig, stars, heading: localHeading });
 function setView(mode) {
   document.body.classList.toggle('inside', mode === 'inside');
   // From the origin a star needs a smaller radius: only the nearest few resolve, the rest are points of light.
   tw.set('r0', { origin: 0.045, inside: 0.04, outside: 0.11 }[mode], 1.2);
   for (const m of ['outside', 'origin', 'inside']) $('v-' + m).setAttribute('aria-pressed', String(mode === m));
 }
-/** Inside, the world is scaled so the ground disk (the plane Y = h) lies at your feet. */
+/**
+ * Inside, the world is scaled so the ground disk (the plane Y = h) lies at your feet, and mirrored in X: the
+ * standard orientation of H² is the one seen from below (from the origin), so standing on top of the plane would
+ * otherwise show its mirror image, and your left and right would be swapped relative to Series' L/R convention.
+ */
 function setWorldFrame(inside) {
-  world.scale.setScalar(inside ? INSIDE_SCALE : 1);
+  world.scale.set(inside ? -INSIDE_SCALE : 1, inside ? INSIDE_SCALE : 1, inside ? INSIDE_SCALE : 1);
   world.position.set(0, inside ? -H * INSIDE_SCALE : 0, 0);
   camera.near = inside ? 0.002 : 0.02; camera.updateProjectionMatrix();
 }
@@ -654,4 +664,4 @@ resize();
 readHash();
 xr = setupXR({ renderer, scene, world, stars, state, api, markDirty, setG, animateG, absorb, H, HP });
 renderer.setAnimationLoop(frame);
-window.starscape = { state, rig, stars, api, setG, tweens: tw, G, F };   // for the console and tests
+window.starscape = { state, rig, stars, api, setG, tweens: tw, pane, G, F };   // for the console and tests
