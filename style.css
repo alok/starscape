@@ -182,4 +182,6 @@ body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels {
   #inside-hud { top: 56px; left: 10px; right: 10px; width: auto; transform: none; padding: 8px 10px; }
   #inside-hud .hint { display: none; }
 }
+/* ?clean hides the interface (screenshots, link previews, recordings). */
+body.clean #chapter, body.clean #dock, body.clean #inspector, body.clean #roots-head, body.clean #g-readout, body.clean #inside-hud, body.clean #help, body.clean #settings { display: none !important; }
 @media (prefers-reduced-motion: reduce) { #veil { transition: none; } }

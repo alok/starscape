@@ -4,6 +4,8 @@
 
 **[Open Starscape](https://alok.blog/starscape/)**. It runs in any modern browser. On a headset it offers **Enter VR**.
 
+![The sky seen from the zero polynomial (Klein model), beside the same stars in the upper half-plane](assets/og.png)
+
 This is an independent implementation inspired by **Katherine E. Stange**’s [Starscape / Lattice viewer](https://www.katestange.net/starscape-lattice/) and her talk [Illustrating Mathematics](https://katestange.net/talks/math-exploration/). The mathematics is from **Edmund Harriss, Katherine E. Stange and Steve Trettel**, [*Algebraic Number Starscapes*](https://arxiv.org/abs/2008.07655) (§4.2). The L/R coding of geodesics is due to **Caroline Series**, [*The Modular Surface and Continued Fractions*](https://doi.org/10.1112/jlms/s2-31.1.69) (1985). No code or media from the original viewer is included.
 
 ## What the 3D medium adds

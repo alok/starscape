@@ -660,6 +660,7 @@ const api = {
   get state() { return state; },
 };
 
+if (new URLSearchParams(location.search).has('clean')) document.body.classList.add('clean');
 resize();
 readHash();
 xr = setupXR({ renderer, scene, world, stars, state, api, markDirty, setG, animateG, absorb, H, HP });
