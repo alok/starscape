@@ -174,7 +174,9 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
 
   // ---- controllers ---------------------------------------------------------------------------------------------
   const raycaster = new THREE.Raycaster();
-  const controllers = [0, 1].map(i => {
+  // With hand tracking granted, visionOS reports the two hands first, for pose only; gaze-and-pinch arrives as
+  // transient pointers after them, so there must be slots for those too.
+  const controllers = [0, 1, 2, 3].map(i => {
     const c = renderer.xr.getController(i);
     const ray = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]),
       new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 }));
@@ -253,6 +255,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
   /** The controller's up vector in the world, for measuring wrist roll about its pointing ray. */
   const upOf = c => new THREE.Vector3(0, 1, 0).applyQuaternion(new THREE.Quaternion().setFromRotationMatrix(tmp.identity().extractRotation(c.matrixWorld)));
   function onSelectStart(c) {
+    c.updateMatrixWorld();   // three set the pose from the event's frame but left matrixWorld stale
     const hit = uiHit(c);
     if (hit?.grabber) { c.userData.held = { grab: true, offset: ui.group.position.clone().sub(hit.point), distance: hit.distance }; return; }
     if (hit) { c.userData.held = { ui: hit }; return; }
@@ -269,6 +272,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     }
   }
   function onSelectEnd(c) {
+    c.updateMatrixWorld();
     const h = c.userData.held; c.userData.held = null;
     if (!h || h.grab || h.paired) return;
     if (h.ui) { h.ui.button?.onPress?.(); setTimeout(renderAll, 30); return; }
@@ -296,6 +300,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     const ch = api.chapter().index, sel = String(state.selected);
     if (ch !== lastChapter || api.rig.mode !== lastMode || sel !== lastSel) { lastChapter = ch; lastMode = api.rig.mode; lastSel = sel; renderAll(); }
     for (const c of controllers) {
+      if (!c.visible) continue;   // an idle slot must not cast a ray from the floor or clear the hover
       const u = c.userData, h = u.held;
       // Hover glow on glass buttons.
       if (!h) {
