@@ -28,16 +28,17 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
   renderer.xr.enabled = true;
   renderer.xr.setReferenceSpaceType('local-floor');
 
-  let session = null, mode = null, planeLift = 0;
+  let session = null, mode = null;
   const saved = { position: new THREE.Vector3(), scale: 1 };
   const head = new THREE.Vector3(), headQ = new THREE.Quaternion();
   const center = new THREE.Vector3(0, 0, 0);     // inside: where in the room the center of the disk sits
   // Your eyes and heading when the glass was last placed (at the start, or on recenter): the Origin puts the zero
   // polynomial there and the tabletop model ahead of it, so nothing moves unless you ask.
   const anchor = new THREE.Vector3(0, 1.55, 0), ahead = new THREE.Vector3(0, 0, -1);
+  let planeLift = 0;                             // inside: meters the plane is raised off the floor
 
   // ---- placement -----------------------------------------------------------------------------------------------
-  function place(dt = 0) {
+  function place() {
     const vantage = api.rig.mode;
     world.rotation.set(0, 0, 0);
     if (vantage === 'origin') {
@@ -48,13 +49,11 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
       world.position.copy(anchor).addScaledVector(ahead, 1.1);   // at eye height, above the glass (drawn over all)
     } else {
       world.scale.set(-FLOOR_SCALE, FLOOR_SCALE, FLOOR_SCALE);   // mirrored: see setWorldFrame in app.js
-      // The plane Y = h in display units lies on the floor; lifting it raises it toward the eyes.
-      const target = planeLiftTarget * (head.y - 0.02);
-      planeLift += (target - planeLift) * Math.min(1, dt * 3);
+      // The plane Y = h in display units lies on the floor; risen, it is world-locked at the eye height you had
+      // when you pressed, so it never follows your head.
       world.position.set(center.x, -H * FLOOR_SCALE + planeLift, center.z);
     }
   }
-  let planeLiftTarget = 0;
 
   /** Inside: turn the head's horizontal drift from the disk's center into hyperbolic walking, and recenter. */
   function walkWithBody() {
@@ -79,7 +78,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     ui.group.visible = true; uiPlaced = false;
     renderAll();
     session.addEventListener('end', () => {
-      session = null; mode = null; planeLiftTarget = planeLift = 0;
+      session = null; mode = null; planeLift = 0;
       world.position.copy(saved.position); world.scale.setScalar(saved.scale); world.rotation.set(0, 0, 0);
       ui.group.visible = false;
       document.body.classList.remove('immersive');
@@ -147,7 +146,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     seg('inside', 'Inside', v === 'inside', () => api.goInside());
     x += 12;
     if (v === 'inside') {
-      seg('lift', planeLiftTarget ? 'Stand on it' : 'Rise into it', false, () => { planeLiftTarget = planeLiftTarget ? 0 : 1; renderAll(); }, 150);
+      seg('lift', planeLift ? 'Stand on it' : 'Rise into it', false, () => { planeLift = planeLift ? 0 : head.y - 0.02; renderAll(); }, 150);
       seg('home', 'Back to i', false, () => animateG([...G.identity]), 120);
     } else {
       seg('pic', ['Lattice', 'Klein', 'Poincaré', 'Half-plane'][m], false, () => { api.setMorph((m + 1) % 4); setTimeout(renderAll, 50); }, 136);
@@ -304,7 +303,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     head.setFromMatrixPosition(cam.matrixWorld); headQ.setFromRotationMatrix(cam.matrixWorld);
     if (!uiPlaced && head.lengthSq() > 0) { placeUI(); center.set(head.x, 0, head.z); }
     walkWithBody();
-    place(dt);
+    place();
     palmUp(dt);
     // Keep the glass in sync with the app.
     const ch = api.chapter().index, sel = String(state.selected);
