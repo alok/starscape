@@ -43,6 +43,7 @@ It is a static site with no build step. three.js r180 is vendored in `vendor/`.
 python3 scripts/serve.py 8848     # then open http://127.0.0.1:8848
 node --test test/                 # the mathematics: fixtures, invariants, Farey/Δ = 1, walking, float32
 node scripts/shoot.mjs "http://127.0.0.1:8848/#c=5" phone.png --size 390x844 --mobile   # true phone screenshot
+node scripts/film.mjs scripts/reel.mjs tour.mp4 --fps 60 --scale 2 --out 1920x1080       # the demo video, frame by frame
 ```
 
 ## Layout
@@ -57,7 +58,8 @@ src/views/    rig: Outside, Origin and Inside vantage points
 src/ui/       chapters (the tour), xr (WebXR)
 lean/         the Lean 4 version: kernel-checked identities and an exact data bridge
 lean-float/   on FloatLib: the shader's float32 Δ and plane test are exact (where it matters, with a runtime guard)
-scripts/      no-cache dev server; headless screenshots at exact device sizes
+scripts/      no-cache dev server; headless screenshots at exact device sizes; a deterministic video recorder
+              (film.mjs) and the demo reel it plays (reel.mjs)
 ```
 
 ## What is checked, and how

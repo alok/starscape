@@ -716,4 +716,4 @@ resize();
 readHash();
 xr = setupXR({ renderer, scene, world, stars, state, api, markDirty, setG, animateG, absorb, H, HP });
 renderer.setAnimationLoop(frame);
-window.starscape = { state, rig, stars, api, setG, tweens: tw, pane, G, F };   // for the console and tests
+window.starscape = { state, rig, stars, api, setG, tweens: tw, pane, G, F, markDirty };   // for the console, tests and scripts/film.mjs
