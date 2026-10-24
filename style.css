@@ -177,6 +177,7 @@ body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels {
   #dock-toggle { display: inline-grid; }
   #roots-head { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); right: 50%; }
   body.roots-only #roots-head { bottom: auto; top: 56px; }
+  #roots-head .t { display: none; }   /* the model buttons say what the pane is; at 360 px the label clipped ⌂ */
   .more { display: none; }
   #dock.open { flex-wrap: wrap; max-width: calc(100vw - 20px); left: 10px; }
   #dock.open .more { display: contents; }
