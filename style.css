@@ -124,7 +124,7 @@ button.xr { background: rgba(255, 213, 138, 0.14); border-color: rgba(255, 213, 
 
 /* The roots pane, side by side with the lattice */
 #roots-overlay { position: fixed; pointer-events: none; z-index: 2; display: none; }
-body.split #roots-overlay { display: block; }
+body.split #roots-overlay, body.roots-only #roots-overlay { display: block; }
 body.split::after { content: ''; position: fixed; top: 0; bottom: 0; right: var(--pane-w); width: 1px; background: rgba(160, 185, 230, 0.16); z-index: 2; pointer-events: none; }
 #roots-head { position: fixed; top: max(14px, env(safe-area-inset-top)); right: calc(var(--pane-w) / 2); transform: translateX(50%); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; z-index: 6; border-radius: 999px; }
 #roots-head .t { font: italic 16px var(--serif); color: var(--ink-2); }
@@ -178,6 +178,8 @@ body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels {
   #chapter h2 { font-size: 19px; margin: 4px 0; }
   #c-body { font-size: 15px; }
   #chapter:not(.expanded) #c-body { display: none; }
+  #c-dots { display: none; }
+  #dock .seg button { padding: 5px 8px; font-size: 13px; }
   #chapter.expanded ~ #inspector { display: none; }
   .readout { top: auto; bottom: calc(env(safe-area-inset-bottom) + 172px); font-size: 13px; width: 92vw; text-align: center; }
   .sheet { left: 10px; right: 10px; width: auto; bottom: auto; top: 60px; max-height: calc(100dvh - 80px); }
