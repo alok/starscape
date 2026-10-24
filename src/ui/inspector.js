@@ -65,8 +65,13 @@ export class Inspector {
         ? `In one of the h(${minus(d)}) = ${h} primitive SL₂(ℤ)-orbits of stars on Δ = ${minus(d)}${n > h ? `, which has ${n} orbits counting multiples` : ''}.`
         : `In ${k} times the orbit of ${tupleText([a / k, b / k, c / k])}: one of the ${n} orbits of stars on Δ = ${minus(d)}, of which h(${minus(d)}) = ${h} are primitive.`);
     }
-    if (kind === 'exterior') out.push('Its plane is drawn: the geodesic between its roots.');
     const plane = this.state.plane;
+    if (kind === 'exterior') {
+      // A hover preview of a dust point does not draw its plane; only selecting it does.
+      const [A, B, C] = plane?.normal ?? [0, 0, 0];
+      const drawn = plane && A * b - B * a === 0 && B * c - C * b === 0 && A * c - C * a === 0;
+      out.push(drawn ? 'Its plane is drawn: the geodesic between its roots.' : 'Select it to draw its plane: the geodesic between its roots.');
+    }
     if (plane && kind !== 'exterior' && Pl.onPlane(plane.normal, coef)) out.push(`On the plane ${Pl.planeEquation(plane.normal)}.`);
     return out;
   }
