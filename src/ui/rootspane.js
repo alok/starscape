@@ -141,7 +141,8 @@ export class RootsPane {
     u.uMorph.value = this.morph;
     // Flat on a page every star is in front of you at the same distance: the light of the flattened picture seen
     // from outside, whatever the 3D view is doing (its own exposure follows its vantage, morph and aspect).
-    u.uExposure.value = this.state.exposure * PANE_EXPOSURE;
+    // Points need the boost; disks do not, except on the Inside map, which was tuned with it.
+    u.uExposure.value = this.state.exposure * (this.inside || this.state.style === 1 ? PANE_EXPOSURE : 1);
     if (this.inside) u.uRho.value.identity();
     u.uViewportH.value = rect.h * this.dpr;
     const W = renderer.domElement.clientWidth, Hc = renderer.domElement.clientHeight;
@@ -254,12 +255,19 @@ export class RootsPane {
     for (let i = 0; i < L.count; i++) {
       if (L.kinds[i] === 2 || !stars.visible(i)) continue;
       const a = co[3 * i], b = co[3 * i + 1], c = co[3 * i + 2], X0 = -b, Y0 = a + c, Z0 = c - a;
-      const Y = rho[3] * X0 + rho[4] * Y0 + rho[5] * Z0;
-      const ku = (rho[0] * X0 + rho[1] * Y0 + rho[2] * Z0) / Y, kv = (rho[6] * X0 + rho[7] * Y0 + rho[8] * Z0) / Y;
-      const [x, z] = Mo.pictureOf(ku, kv, m, H, HP);
+      let x, z;
+      if (L.kinds[i] === 3) {
+        // Null forms may be drawn as rings lifted off their root; hit-test where the shader draws them.
+        const st = stars.stage(a, b, c, rho, this.morph); x = st.position[0]; z = st.position[2];
+      } else {
+        const Y = rho[3] * X0 + rho[4] * Y0 + rho[5] * Z0;
+        const ku = (rho[0] * X0 + rho[1] * Y0 + rho[2] * Z0) / Y, kv = (rho[6] * X0 + rho[7] * Y0 + rho[8] * Z0) / Y;
+        [x, z] = Mo.pictureOf(ku, kv, m, H, HP);
+      }
       const dx = this.rect.w / 2 + (x - v.cx) * s - px0, dy = this.rect.h / 2 - (z - v.cz) * s - py0;
       if (Math.abs(dx) > bestD || Math.abs(dy) > bestD) continue;
-      const d = Math.hypot(dx, dy);
+      // ±f share a root, so in a picture they coincide; on a tie prefer a > 0, the star rather than its negative.
+      const d = Math.hypot(dx, dy) + (a < 0 ? 1e-3 : 0);
       if (d < bestD) { bestD = d; best = i; }
     }
     return best;

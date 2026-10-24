@@ -93,7 +93,9 @@ export function squarePart(n) {
 /**
  * Lattice points for the scene, packed for the GPU:
  *  - every nonzero triple in the display ball X²+Y²+Z² ≤ ball² (all four kinds; the "dust"),
- *  - plus every upper-interior triple (Δ<0, a>0) with depth a+c ≤ depth (the stars, as in Stange's viewer).
+ *  - plus every upper-interior triple (Δ<0, a>0) with depth a+c ≤ depth (the stars, as in Stange's viewer),
+ *  - plus every upper-cone triple (Δ=0, a>0) with a+c ≤ depth: the double-root forms k(qx − p)², whose half-plane
+ *    pictures are the Ford circles (p² + q² ≤ depth/k).
  * Returns typed arrays: coefficients (Int32, 3 per point), kind code (Uint8), primitive flag (Uint8), and the
  * largest |coefficient|, which bounds the shader's float32 products (see gpuPlaneExact).
  * @returns {{count:number, coefficients:Int32Array, maxCoefficient:number, kinds:Uint8Array, primitive:Uint8Array}}
@@ -110,14 +112,21 @@ export function buildLattice({ ball = 6, depth = 48 } = {}) {
     if (!a && !b && !c) continue;
     const Y = a + c, Z = c - a;
     if (b * b + Y * Y + Z * Z > ball * ball) continue;
-    // Upper interior points inside the depth bound are added by the star loop below.
-    if (discriminant(a, b, c) < 0 && a > 0 && Y <= depth) continue;
+    // Upper points (interior and cone) inside the depth bound are added by the loops below.
+    if (a > 0 && Y <= depth && discriminant(a, b, c) <= 0) continue;
     push(a, b, c);
   }
   // Upper interior: a > 0, c > 0 (since 4ac > b² ≥ 0), a + c ≤ depth, b² < 4ac.
   for (let a = 1; a < depth; a++) for (let c = 1; c <= depth - a; c++) {
     const bmax = Math.ceil(2 * Math.sqrt(a * c)) - 1;
     for (let b = -bmax; b <= bmax; b++) if (b * b < 4 * a * c) push(a, b, c);
+  }
+  // Upper cone: b² = 4ac with a > 0, c ≥ 0, a + c ≤ depth.
+  for (let a = 1; a <= depth; a++) for (let c = 0; a + c <= depth; c++) {
+    const b = Math.round(Math.sqrt(4 * a * c));
+    if (b * b !== 4 * a * c) continue;
+    push(a, b, c);
+    if (b) push(a, -b, c);
   }
   return {
     count: kinds.length,

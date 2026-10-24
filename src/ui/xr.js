@@ -129,8 +129,9 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     p.button('prev', '‹', pad, by, 64, 54, { size: 34, onPress: () => api.renderChapter(c.index - 1) });
     p.text(`${c.index + 1} / ${c.count}`, W / 2, by + 14, { size: 24, font: "'Inter', sans-serif", color: '#aeb8c9', align: 'center' });
     p.button('next', '›', W - pad - 64, by, 64, 54, { size: 34, onPress: () => api.renderChapter(c.index + 1) });
-    (c.actions ?? []).slice(0, 3).forEach((a, i) => {
-      const w = Math.min(220, (W - 2 * pad - 20) / 3);
+    const acts = (c.actions ?? []).slice(0, 5), gap = 10;
+    acts.forEach((a, i) => {
+      const w = Math.min(220, (W - 2 * pad - gap * (Math.max(3, acts.length) - 1)) / Math.max(3, acts.length));
       p.button('act' + i, a.label.length > 18 ? a.label.slice(0, 17) + '…' : a.label, pad + i * (w + 10), by - 70, w, 50, { size: 20, onPress: () => a.run(api) });
     });
   };

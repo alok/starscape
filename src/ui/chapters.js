@@ -51,13 +51,15 @@ export const CHAPTERS = [
     eyebrow: 'V · the quadratic formula',
     title: 'An isometry onto the half-plane',
     body: `<p>${m('[a : b : c] ↦ (−b + i√(4ac − b²)) / 2a')} is an isometry from the Klein model onto the upper half-plane (Thm 4.9). Drag the picture slider from Klein through Poincaré to the half-plane: straight chords bend into circles orthogonal to ℝ.</p>
-<p>Each star is a disk of hyperbolic radius ${m('∝ 1/√|Δ|')}, which in the half-plane is ${m('1/2a')}. The double-root forms ${m('k(qx − p)²')} obey the same rule on the real line, with radius ${m('1/2kq²')}: the <b>Ford circles</b> are the stars on the horizon.</p>`,
+<p>Each star is a disk of hyperbolic radius ${m('∝ 1/√|Δ|')}, which in the half-plane is ${m('1/2a')}. A double-root form ${m('k(qx − p)²')} sits on the light cone, and its picture is a horocycle: drawn as a disk, it is a ring tangent to ℝ at its root ${m('p/q')}, with radius ${m('∝ 1/2kq²')}. The forms ${m('(qx − p)²')} give the <b>Ford circles</b>, each scaled about its point of tangency, so rings at different roots never overlap; the multiples ${m('k(qx − p)²')} nest inside them. Choose <em>Disks</em> to see them.</p>`,
     scene: { view: 'outside', pose: { radius: 9.5, theta: 0, phi: Math.PI - 0.0001, target: [0, 4, 1.4], fov: 50 }, morph: 3, depth: 'deep',
       alpha: { upper: 1, lower: 0, exterior: 0, null: 1 }, cone: false, screen: false, plane: null, select: [1, 1, 1] },
     actions: [
       { label: 'Klein', run: app => app.setMorph(1) },
       { label: 'Poincaré', run: app => app.setMorph(2) },
       { label: 'Half-plane', run: app => app.setMorph(3) },
+      { label: 'Disks', run: app => app.setStyle(0) },
+      { label: 'Points', run: app => app.setStyle(1) },
     ],
   },
   {

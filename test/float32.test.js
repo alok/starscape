@@ -21,7 +21,7 @@ for (let i = 0; i < lattice.count; i++) if (lattice.kinds[i] === F.KIND_CODE.upp
 const randomStar = () => point(stars[Math.floor(random() * stars.length)]);
 
 test('the drawn lattice stays far below 2^10 (deltaF_eq_of_le)', () => {
-  assert.equal(lattice.maxCoefficient, 95);
+  assert.equal(lattice.maxCoefficient, 96);   // 48(x − 1)² = (48, −96, 48), on the cone at depth 96
 });
 
 test('float32 Δ is exact on every drawn point', () => {
@@ -32,7 +32,7 @@ test('float32 Δ is exact on every drawn point', () => {
 });
 
 test('planes through two drawn stars always satisfy the proved bound', () => {
-  // |2C|, |B|, |2A| ≤ 4·2·95² = 72 200 for a cross product of duals, and 72 200 · 95 < 2^24.
+  // |2C|, |B|, |2A| ≤ 8·96² = 73 728 for a cross product of duals, and 73 728 · 96 < 2^24.
   for (let t = 0; t < 4000; t++) {
     const plane = P.planeThrough(randomStar(), randomStar());
     if (!plane.error) assert.ok(P.gpuPlaneExact(plane.normal, lattice.maxCoefficient), String(plane.normal));

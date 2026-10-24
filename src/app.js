@@ -124,6 +124,9 @@ function resize() {
   if (!rig.animating) rig.apply();
   const u = stars.uniforms, p = dpr();
   u.uMinPx.value = 1.15 * p; u.uKnee.value = 3.2 * p; u.uMaxPx.value = 12 * p; u.uHaloPx.value = 3 * p; u.uPointPx.value = 2.1 * p;
+  // Rings (horocycles) keep their true size up to what the GPU can draw as one point sprite.
+  const gl = renderer.getContext(), maxPoint = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)?.[1] ?? 64;
+  u.uRingMaxPx.value = Math.max(u.uMaxPx.value, Math.min(48 * p, (maxPoint - u.uHaloPx.value) / 2));
   dirty = true;
 }
 window.addEventListener('resize', resize);
@@ -144,7 +147,11 @@ function syncUniforms() {
   // In portrait the rig widens the field of view to keep the same width in sight, which packs ~1/aspect² more
   // stars into each pixel; additive light would blow out where they crowd.
   const portrait = renderer.xr.isPresenting ? 1 : Math.min(1, camera.aspect) ** 0.6;
-  u.uExposure.value = state.exposure * view * portrait * (1 + 1.2 * flat) * (1 - 0.35 * halfPlane) * (1 - 0.25 * tw.get('floor'));
+  // These boosts are for tiny points; disks already spread each star's light over its area. Inside always draws
+  // disks on the ground and was tuned with the boost, so it keeps it whatever the style setting says.
+  const boosted = rig.mode === 'inside' || state.style === 1;
+  const picture = boosted ? view * (1 + 1.2 * flat) * (1 - 0.35 * halfPlane) : 1;
+  u.uExposure.value = state.exposure * picture * portrait * (1 - 0.25 * tw.get('floor'));
   u.uR0.value = tw.get('r0') * state.size;
   u.uMultiples.value = +state.show.multiples;
   // Inside, a star is drawn at its true hyperbolic size on the ground; elsewhere the chosen style applies.
@@ -697,6 +704,7 @@ function readHash() {
 /** What the tour's actions and the XR panels may call. */
 const api = {
   rig, leanTo, goOrigin, goOutside, goInside, setMorph, setEye, applyIntegral, stepShell, select,
+  setStyle: s => { state.style = s; $('s-style').value = String(s); dirty = true; },
   renderChapter: i => tour.go(i),
   chapter: () => ({ ...CHAPTERS[state.chapter], index: state.chapter, count: CHAPTERS.length }),
   restoreFrame: () => { setWorldFrame(rig.mode === 'inside'); dirty = true; },
