@@ -43,12 +43,17 @@ export class Rig {
   }
   pose() { return this.mode === 'outside' ? this.outsidePose() : this.mode === 'origin' ? this.originPose() : this.insidePose(); }
 
-  /** Poses store a field of view for landscape; in portrait we widen it so the same width stays in view. */
+  /**
+   * Poses store a field of view for landscape; in portrait we widen it so the same width stays in view. From the
+   * origin, looking up, the screen plane is parallel to the image, so even a very wide angle only scales the disk:
+   * there it may open far enough to keep −1 and 1 on a phone.
+   */
   fitFov(fov) {
     const aspect = this.camera.aspect || 1;
     if (aspect >= 1) return fov;
-    const v = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) / aspect) * (180 / Math.PI);
-    return Math.min(v, fov < 60 ? 90 : 118);
+    const origin = this.mode === 'origin', margin = origin ? 1.1 : 1;   // the rim labels sit at 1.06 radii
+    const v = 2 * Math.atan((margin * Math.tan((fov * Math.PI) / 360)) / aspect) * (180 / Math.PI);
+    return Math.min(v, origin ? 140 : fov < 60 ? 90 : 118);
   }
   apply(pose = this.pose()) {
     this.camera.position.copy(pose.position);
