@@ -28,13 +28,10 @@ export function makeCone(height = 7) {
   const lower = surf.clone(); lower.scale.y = -1;
   group.add(surf, lower);
 
-  // Rulings through the origin, moved by ρ(g) in the vertex shader.
-  const pts = [];
-  for (let i = 0; i < 48; i++) {
-    const t = (i / 48) * Math.PI * 2, x = Math.cos(t), z = Math.sin(t);
-    pts.push(-x * height, -height, -z * height, x * height, height, z * height);
-  }
-  const rulings = new THREE.LineSegments(
+  // Rulings through the origin and level circles a + c = ±y, moved by ρ(g) in the vertex shader. From outside the
+  // circles are ellipses, whose eccentricity shows the cone's depth and tilt in a still frame; from the origin they
+  // all lie on the rim of the sky.
+  const lines = (pts, gain) => new THREE.LineSegments(
     new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)),
     new THREE.ShaderMaterial({
       uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -42,9 +39,18 @@ export function makeCone(height = 7) {
         void main(){ vec3 p = uRho*position; float s = length(p); vec3 q = p * min(1.0, ${height.toFixed(1)}*1.414/max(s,1e-6));
           vD = length(q)/${(height * 1.414).toFixed(2)}; gl_Position = projectionMatrix*modelViewMatrix*vec4(q,1.0); }`,
       fragmentShader: /* glsl */`uniform float uOpacity; varying float vD;
-        void main(){ float f = 0.20*uOpacity*(1.0-smoothstep(0.55,1.0,vD))*smoothstep(0.0,0.08,vD); gl_FragColor=vec4(vec3(0.6,0.72,1.0)*f,f);} `,
+        void main(){ float f = ${gain.toFixed(2)}*uOpacity*(1.0-smoothstep(0.55,1.0,vD))*smoothstep(0.0,0.08,vD); gl_FragColor=vec4(vec3(0.6,0.72,1.0)*f,f);} `,
     }));
-  group.add(rulings);
+  const rulings = [], rings = [];
+  for (let i = 0; i < 48; i++) {
+    const t = (i / 48) * Math.PI * 2, x = Math.cos(t), z = Math.sin(t);
+    rulings.push(-x * height, -height, -z * height, x * height, height, z * height);
+  }
+  for (const y of [-0.75, -0.5, -0.25, 0.25, 0.5, 0.75].map(f => f * height)) for (let i = 0; i < 96; i++) {
+    const t0 = (i / 96) * Math.PI * 2, t1 = ((i + 1) / 96) * Math.PI * 2, r = Math.abs(y);
+    rings.push(r * Math.cos(t0), y, r * Math.sin(t0), r * Math.cos(t1), y, r * Math.sin(t1));
+  }
+  group.add(lines(rulings, 0.2), lines(rings, 0.42));
   group.userData = { uniforms };
   return group;
 }
