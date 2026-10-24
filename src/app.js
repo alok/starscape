@@ -110,6 +110,7 @@ function resize() {
   renderer.setPixelRatio(dpr());
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (!rig.animating) rig.apply();
   const p = dpr();
   Object.assign(stars.uniforms, {});
   stars.uniforms.uMinPx.value = 1.15 * p; stars.uniforms.uKnee.value = 3.2 * p;
@@ -260,7 +261,8 @@ function absorb() {
   state.pairFirst = move(state.pairFirst);
   if (state.plane) state.plane = Pl.planeFromNormal(move(state.plane.normal));
   setG([...G.identity]);
-  flash(before ? `γ = ${matrixText(gamma)} · (${before.join(', ')}) ↦ (${state.selected.join(', ')})` : `γ = ${matrixText(gamma)}`);
+  const tuple = t => `(${t.join(', ').replaceAll('-', '−')})`;
+  flash(before ? `γ = ${matrixText(gamma)} · ${tuple(before)} ↦ ${tuple(state.selected)}` : `γ = ${matrixText(gamma)}`);
   showInspector(state.selected);
 }
 function applyIntegral(name) {
@@ -446,6 +448,7 @@ function showInspector(coef, preview = false) {
   $('i-delta').textContent = `Δ = ${String(d).replace('-', '−')}`;
   $('i-root-label').textContent = kind === 'exterior' ? 'roots' : 'root';
   $('i-root').textContent = F.rootText(a, b, c);
+  $('i-compact').textContent = `Δ = ${String(d).replace('-', '−')} · ${F.rootText(a, b, c)}`;
   const notes = [];
   if (k > 1) notes.push(`${k} × (${[a / k, b / k, c / k].join(', ').replaceAll('-', '−')}): same root, ${k} times farther from the origin, so ${k * k} times dimmer.`);
   if (kind === 'upper' && k === 1) {
@@ -560,10 +563,20 @@ CHAPTERS.forEach((c, i) => {
 });
 $('c-prev').onclick = () => renderChapter(state.chapter - 1);
 $('c-next').onclick = () => renderChapter(state.chapter + 1);
+const narrow = matchMedia('(max-width: 760px)');
+function syncCollapse() {
+  const open = narrow.matches ? $('chapter').classList.contains('expanded') : !$('chapter').classList.contains('collapsed');
+  $('c-collapse').textContent = open ? '–' : '+';
+  $('c-collapse').setAttribute('aria-label', open ? 'Hide the tour text' : 'Show the tour text');
+}
 $('c-collapse').onclick = () => {
-  const c = $('chapter').classList.toggle('collapsed');
-  $('c-collapse').textContent = c ? '+' : '–';
+  if (narrow.matches) $('chapter').classList.toggle('expanded'); else $('chapter').classList.toggle('collapsed');
+  syncCollapse();
 };
+$('c-title').onclick = () => { if (narrow.matches) { $('chapter').classList.toggle('expanded'); syncCollapse(); } };
+syncCollapse();
+$('inspector').addEventListener('click', e => { if (narrow.matches && !e.target.closest('button')) $('inspector').classList.toggle('expanded'); });
+$('dock-toggle').onclick = () => { const o = $('dock').classList.toggle('open'); $('dock-toggle').setAttribute('aria-expanded', String(o)); };
 
 function stepShell(delta) {
   let k = state.shellK || 3;

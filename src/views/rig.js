@@ -34,10 +34,18 @@ export class Rig {
   }
   pose() { return this.mode === 'outside' ? this.outsidePose() : this.originPose(); }
 
+  /** Poses store a field of view for landscape; in portrait we widen it so the same width stays in view. */
+  fitFov(fov) {
+    const aspect = this.camera.aspect || 1;
+    if (aspect >= 1) return fov;
+    const v = 2 * Math.atan(Math.tan((fov * Math.PI) / 360) / aspect) * (180 / Math.PI);
+    return Math.min(v, fov < 60 ? 90 : 118);
+  }
   apply(pose = this.pose()) {
     this.camera.position.copy(pose.position);
     this.camera.quaternion.copy(pose.quaternion);
-    if (this.camera.fov !== pose.fov) { this.camera.fov = pose.fov; this.camera.updateProjectionMatrix(); }
+    const fov = this.fitFov(pose.fov);
+    if (this.camera.fov !== fov) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
   }
 
   // --- transitions --------------------------------------------------------------------------------------------
@@ -62,7 +70,7 @@ export class Rig {
       const pos = a.from.position.clone().lerp(a.to.position, e);
       this.camera.position.copy(pos);
       this.camera.quaternion.copy(a.from.quaternion).slerp(a.to.quaternion, e);
-      this.camera.fov = lerp(a.from.fov, a.to.fov, e);
+      this.camera.fov = lerp(a.from.fov, this.fitFov(a.to.fov), e);
       this.camera.updateProjectionMatrix();
       if (a.t >= 1) { this.anim = null; this.apply(); a.resolve(); }
       return true;

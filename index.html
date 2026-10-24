@@ -26,18 +26,6 @@
     <p class="sub">the integer quadratics as a night sky</p>
   </header>
 
-  <aside id="inspector" class="glass" hidden aria-live="polite">
-    <p class="kind" id="i-kind"></p>
-    <p class="poly" id="i-poly"></p>
-    <dl>
-      <dt>coefficients</dt><dd id="i-coef"></dd>
-      <dt>discriminant</dt><dd id="i-delta"></dd>
-      <dt id="i-root-label">root</dt><dd id="i-root"></dd>
-      <dt id="i-g-label" hidden>under g</dt><dd id="i-g" hidden></dd>
-    </dl>
-    <p class="note" id="i-note"></p>
-    <div class="actions" id="i-actions"></div>
-  </aside>
 
   <section id="chapter" class="glass" aria-label="Guided tour">
     <div class="chapter-head">
@@ -53,6 +41,20 @@
     </div>
   </section>
 
+  <aside id="inspector" class="glass" hidden aria-live="polite">
+    <p class="kind" id="i-kind"></p>
+    <p class="poly" id="i-poly"></p>
+    <p class="compact" id="i-compact"></p>
+    <dl>
+      <dt>coefficients</dt><dd id="i-coef"></dd>
+      <dt>discriminant</dt><dd id="i-delta"></dd>
+      <dt id="i-root-label">root</dt><dd id="i-root"></dd>
+      <dt id="i-g-label" hidden>under g</dt><dd id="i-g" hidden></dd>
+    </dl>
+    <p class="note" id="i-note"></p>
+    <div class="actions" id="i-actions"></div>
+  </aside>
+
   <nav id="dock" class="glass" aria-label="View controls">
     <div class="seg" role="group" aria-label="Vantage point">
       <button id="v-outside" aria-pressed="true" title="Orbit the lattice (O toggles)">Outside</button>
@@ -62,6 +64,7 @@
       <span class="morph-labels"><span>lattice</span><span>Klein</span><span>Poincaré</span><span>half-plane</span></span>
       <input type="range" id="morph" min="0" max="3" step="0.001" value="0" aria-label="Picture: lattice, Klein, Poincaré or half-plane">
     </label>
+    <div class="more" id="dock-more">
     <div class="seg" role="group" aria-label="Symmetry">
       <button id="g-tinv" title="Apply T⁻¹: x ↦ x − 1">T⁻¹</button>
       <button id="g-s" title="Apply S: x ↦ −1/x">S</button>
@@ -72,6 +75,8 @@
     <button id="xr-ar" class="xr" hidden>View in AR</button>
     <button class="icon" id="settings-open" aria-label="Settings" title="Settings">⚙︎</button>
     <button class="icon" id="help-open" aria-label="Help and credits" title="Help and credits (?)">?</button>
+    </div>
+    <button class="icon" id="dock-toggle" aria-label="More controls" aria-expanded="false">⋯</button>
   </nav>
 
   <div id="g-readout" class="readout" aria-live="polite"></div>
