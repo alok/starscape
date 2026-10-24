@@ -616,7 +616,8 @@ function setEye(h) { rig.setEye(h); $('eye').value = String(h); hud.eyeLabel(); 
 function applyScene(s) {
   if (s.view === 'inside') { goInside(s.pose ?? {}); if (s.select) setTimeout(() => select(s.select, { quiet: true }), 320); return; }
   if (s.view === 'origin') goOrigin({ ...(s.pose ?? {}), leanArr: s.lean });
-  else if (s.view === 'outside') goOutside(s.pose ?? {});
+  // A phone has no roots pane beside the 3D view, so a chapter can ask to face its picture there instead.
+  else if (s.view === 'outside') goOutside((narrow.matches && s.phonePose) || s.pose || {});
   if (s.morph !== undefined) setMorph(s.morph, 1.4);
   if (s.alpha) for (const [k, v] of Object.entries(s.alpha)) tw.set('a_' + k, v, 1.0);
   if (s.depth !== undefined) tw.set('depthOn', s.depth === 'deep' ? 1 : 0, 0);
