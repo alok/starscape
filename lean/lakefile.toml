@@ -1,0 +1,10 @@
+name = "starscape"
+version = "0.1.0"
+defaultTargets = ["Starscape", "starscape-bridge"]
+
+[[lean_lib]]
+name = "Starscape"
+
+[[lean_exe]]
+name = "starscape-bridge"
+root = "Main"
