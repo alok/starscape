@@ -153,11 +153,12 @@ function syncUniforms() {
   u.uMorph.value = m;
   u.uDepth.value = tw.get('depthOn') > 0.5 ? state.starDepth : 0;
   u.uBall.value = BALL;
-  // Exposure by picture: from the origin the light falls off naturally; viewed from outside, or flattened into a
-  // picture, every point is at a similar distance, so the faint majority needs more light to be seen at all. The
-  // half-plane packs every star near ℝ, so it gets a little less.
+  // Exposure by picture: a point's brightness is the light it sends to the origin, 4/|v|², whatever the camera, so
+  // on a screen the faint majority needs more light to be seen at all, from outside or from the origin (which then
+  // reads like the roots pane beside it). In a headset the sky surrounds you and keeps its natural level. Flattened
+  // into a picture the stars need more again; the half-plane packs every star near ℝ, so it gets a little less.
   const flat = Math.min(1, Math.max(0, (m - 0.5) / 1.5)), halfPlane = Math.min(1, Math.max(0, m - 1.5) / 1.5);
-  const view = rig.mode === 'outside' ? 2.2 : 1;
+  const view = rig.mode === 'outside' || (rig.mode === 'origin' && !renderer.xr.isPresenting) ? 2.2 : 1;
   // In portrait the rig widens the field of view to keep the same width in sight, which packs ~1/aspect² more
   // stars into each pixel; additive light would blow out where they crowd.
   const portrait = renderer.xr.isPresenting ? 1 : Math.min(1, camera.aspect) ** 0.6;
