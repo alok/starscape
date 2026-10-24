@@ -73,7 +73,8 @@ Object.entries({ a_upper: 1, a_lower: 0.8, a_exterior: 0.75, a_null: 1, morph: 0
 // Phones get her full sky (a + c ≤ 57, about 100k stars); desktops can go denser.
 const MAX_DEPTH = isMobile ? 57 : 96;
 if (isMobile) $('s-depth').querySelector('option[value="80"]')?.remove();
-const stars = new StarField(F.buildLattice({ ball: BALL, depth: MAX_DEPTH }), { palette: state.palette });
+const LATTICE = F.buildLattice({ ball: BALL, depth: MAX_DEPTH });
+const stars = new StarField(LATTICE, { palette: state.palette });
 stars.uniforms.uH.value = H; stars.uniforms.uHP.value = HP;
 stars.setRho(G.displayPushforward(state.g));
 const cone = makeCone(8), screenDisk = makeScreen(H), selection = makeSelection();
@@ -123,6 +124,7 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+let warnedPlane = '';
 function syncUniforms() {
   const u = stars.uniforms, m = tw.get('morph');
   u.uKindAlpha.value.set(tw.get('a_upper'), tw.get('a_lower') * +state.show.lower,
@@ -144,8 +146,14 @@ function syncUniforms() {
   // Inside, a star is drawn at its true hyperbolic size on the ground; elsewhere the chosen style applies.
   u.uStyle.value = rig.mode === 'inside' ? 0 : state.style;
   u.uShell.value = state.shellK;
-  u.uPlaneOn.value = state.plane ? 1 : 0;
-  if (state.plane) u.uPlane.value.set(...state.plane.normal);
+  // The shader marks the plane's stars in float32, exactly only under a proved bound (gpuPlaneExact); past it
+  // (after absorbing a large γ) the chord is still drawn exactly but the stars are left unmarked.
+  const marked = state.plane && Pl.gpuPlaneExact(state.plane.normal, LATTICE.maxCoefficient);
+  u.uPlaneOn.value = marked ? 1 : 0;
+  if (marked) u.uPlane.value.set(...state.plane.normal);
+  const planeKey = state.plane?.normal.join() ?? '';
+  if (state.plane && !marked && planeKey !== warnedPlane) flash('This plane is too steep to mark its stars exactly in float32; its chord is exact.');
+  warnedPlane = planeKey;
   u.uUnit.value = world.scale.y;
   cone.visible = state.show.cone && tw.get('cone') > 0.01;
   cone.userData.uniforms.uOpacity.value = tw.get('cone');

@@ -94,7 +94,9 @@ export function squarePart(n) {
  * Lattice points for the scene, packed for the GPU:
  *  - every nonzero triple in the display ball X²+Y²+Z² ≤ ball² (all four kinds; the "dust"),
  *  - plus every upper-interior triple (Δ<0, a>0) with depth a+c ≤ depth (the stars, as in Stange's viewer).
- * Returns typed arrays: coefficients (Int32, 3 per point), kind code (Uint8), primitive flag (Uint8).
+ * Returns typed arrays: coefficients (Int32, 3 per point), kind code (Uint8), primitive flag (Uint8), and the
+ * largest |coefficient|, which bounds the shader's float32 products (see gpuPlaneExact).
+ * @returns {{count:number, coefficients:Int32Array, maxCoefficient:number, kinds:Uint8Array, primitive:Uint8Array}}
  */
 export function buildLattice({ ball = 6, depth = 48 } = {}) {
   const coef = [], kinds = [], prim = [];
@@ -120,6 +122,7 @@ export function buildLattice({ ball = 6, depth = 48 } = {}) {
   return {
     count: kinds.length,
     coefficients: Int32Array.from(coef),
+    maxCoefficient: coef.reduce((m, x) => Math.max(m, Math.abs(x)), 0),
     kinds: Uint8Array.from(kinds),
     primitive: Uint8Array.from(prim),
   };

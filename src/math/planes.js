@@ -24,6 +24,17 @@ export function onPlane(normal, point) {
   return -2n * C * a + B * b - 2n * A * c === 0n;
 }
 
+/**
+ * Can the shader's float32 test `|−2C·a + B·b − 2A·c| < ½` mark this plane's stars exactly? It can when
+ * N·M < 2²⁴, with N the largest of |2C|, |B|, |2A| and M the largest drawn coefficient: then every product is
+ * a binary32 integer, and a partial sum that rounds is too large for the plane value to vanish. Proved over
+ * FloatLib's binary32 in lean-float/StarscapeFloat.lean (`planeF_decides_of_le`).
+ */
+export function gpuPlaneExact([A, B, C], maxCoefficient) {
+  const N = Math.max(Math.abs(2 * C), Math.abs(B), Math.abs(2 * A));
+  return Number.isSafeInteger(2 * N) && N * Math.max(1, maxCoefficient) < 2 ** 24;
+}
+
 /** The plane of an exterior form n (Δ(n) > 0), with its geodesic endpoints. */
 export function planeFromNormal(normal) {
   const n = primitiveBig(normal.map(big)), [a, b, c] = n, delta = b * b - 4n * a * c;
