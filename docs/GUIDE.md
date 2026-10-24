@@ -58,7 +58,10 @@ Give every star a hyperbolic radius `ρ = R₀/√|Δ|`. Then:
 
 - **Seen from the origin**, the apparent size is plain perspective. A star at height `Y` on the screen has Euclidean radius `R₀ h/Y`, and on the shell `|Δ|` you have `Y = √|Δ| / √(1 − |k|²)`, which is exactly the Klein-model size of a hyperbolic disk of radius ρ (tangentially).
 - **In the half-plane**, a hyperbolic disk of radius ρ at height `y` has Euclidean radius ≈ `y·ρ`. With `y = √|Δ|/(2a)` that is `R₀/(2a)`, the sizes in Stange's viewer and in the paper.
-- **On the real line**, the double-root forms `k(qx − p)²` have `a = kq²`, so the same rule gives radius `1/(2kq²)`. For primitive forms these are the **Ford circles**. The Ford circles are the stars on the horizon.
+- **On the real line**, the double-root forms `k(qx − p)²` have `a = kq²`, so the same rule gives radius `1/(2kq²)`. A null form is a horocycle, not a disk around its root, so in disk style it is drawn as a ring tangent to ℝ at `p/q`: center `p/q + i·r`, radius `r = R₀/(2kq²)`. For `k = 1` and `R₀ = 1` these are exactly the **Ford circles** (center `p/q + i/2q²`, radius `1/2q²`), which touch exactly when `|ps − qr| = 1`. At `R₀ < 1` each is its Ford circle shrunk about the tangency, so rings at different roots never meet, and the multiples nest inside at the same point. In the Poincaré disk the ring is the conformal image of the same circle, radius `R₀/(R₀ + |Y|)` of the disk, tangent inside at the root. In point style a null form stays at its root.
+  - **They are in the lattice.** The upper cone `Δ = 0, a > 0` bounds the stars, so its points with `a + c ≤ depth` are drawn with them: every Ford circle with `p² + q² ≤ depth/k`. (The radius-6 ball alone holds only the roots 0, ±1 and ∞.)
+  - **Tangent on screen, not just in the formula.** The shader caps and compresses sprite sizes, so it lifts each ring from its root by the radius it actually draws; rings skip the compression and keep their true size up to a cap. `src/math/picture.js` is the CPU mirror; `test/picture.test.js` checks its geometry, and the roots pane hit-tests rings where they are drawn.
+  - **A floating-point trap.** On the cone `1 − |k|²` is exactly 0, so the code sets it to 0 for null forms rather than taking `√ε`, which lifted roots off ℝ by about 1e-8 in double precision and about 3e-4 in float32.
 
 `stars.js` computes these radii (`r0…r3`) per stage and interpolates. `StarField.stage()` is the CPU mirror, used for picking and markers.
 
@@ -135,6 +138,7 @@ flowchart LR
     models[models.js<br/>Klein ↔ Poincaré ↔ half-plane]
     planes[planes.js<br/>bilinear form, necklaces]
     flat[flatland.js<br/>walk, Farey, L/R, retina]
+    picture[picture.js<br/>where each star is drawn: the shader's CPU mirror]
   end
   subgraph render [src/render — three.js]
     stars[stars.js<br/>one point cloud, shader]
@@ -162,6 +166,7 @@ flowchart LR
   planes -- "plane normal" --> scenery
   flat -- "walk(g)" --> app
   palette -- "ramp texture" --> stars
+  picture -- "stage(): picking, rings" --> stars
   input -- "drag / click / pinch" --> app
   app -- "g, morph, alphas" --> stars
   app -- render --> pane
@@ -263,7 +268,7 @@ Everything above is exact integer mathematics. The picture, though, is drawn by 
 
 **Integers below 2²⁴ are floats.** Binary32 has a 24-bit significand, so an integer `n` with `|n| < 2²⁴` is `n · 2⁰` with a mantissa that fits. In Flocq's language (which FloatLib ports) it is in the FLT format, hence in the generic format, and rounding preserves the generic format (`round_preserves_generic`). That is `fl_int`, four lines of proof.
 
-**Δ.** With coefficients of size at most 1024, `|b²| ≤ 2²⁰`, `|4ac| ≤ 2²²` and `|Δ| < 2²⁴`. Every intermediate is an integer below 2²⁴, so each rounding is the identity (`deltaF_eq_of_le`). Starscape draws coefficients up to 95.
+**Δ.** With coefficients of size at most 1024, `|b²| ≤ 2²⁰`, `|4ac| ≤ 2²²` and `|Δ| < 2²⁴`. Every intermediate is an integer below 2²⁴, so each rounding is the identity (`deltaF_eq_of_le`). Starscape draws coefficients up to 96.
 
 **The plane test is subtler.** Write `P = −2n_c·a`, `T = n_b·b`, `Q = 2n_a·c` and `V = P + T − Q = B(n, f)`. Assume only that each product is below 2²⁴. Then `P`, `T`, `Q` are exact, but `P + T` can reach 2²⁵ and round. Two cases:
 
@@ -272,7 +277,7 @@ Everything above is exact integer mathematics. The picture, though, is drawn by 
 
 Either way `|result| < ½ ⟺ V = 0`. That is `planeF_decides`. The decision is exact even where the arithmetic is not.
 
-**The hypothesis becomes a runtime check.** `planeF_decides_of_le` restates the condition as `N·M < 2²⁴`, where `N` bounds `|2n_c|, |n_b|, |2n_a|` and `M` bounds the drawn coefficients. For a plane through two drawn stars, `N ≤ 4·2·95² = 72 200`, and `72 200 · 95 ≈ 6.9M < 2²⁴ ≈ 16.8M`, so it always holds. But "absorb" relabels the plane by γ, and the normal can grow without limit. `gpuPlaneExact` (`src/math/planes.js`) checks the bound whenever a plane is set. Past it, the app still draws the chord (computed exactly on the CPU) but leaves the stars unmarked and says why. The guard is needed: `test/float32.test.js` keeps a plane with normal (5840707, −33016826, −17578201) that passes through the star (37, 21, 52), where float32 evaluates the test to −64.
+**The hypothesis becomes a runtime check.** `planeF_decides_of_le` restates the condition as `N·M < 2²⁴`, where `N` bounds `|2n_c|, |n_b|, |2n_a|` and `M` bounds the drawn coefficients. For a plane through two drawn stars, `N ≤ 8·96² = 73 728`, and `73 728 · 96 ≈ 7.1M < 2²⁴ ≈ 16.8M`, so it always holds. But "absorb" relabels the plane by γ, and the normal can grow without limit. `gpuPlaneExact` (`src/math/planes.js`) checks the bound whenever a plane is set. Past it, the app still draws the chord (computed exactly on the CPU) but leaves the stars unmarked and says why. The guard is needed: `test/float32.test.js` keeps a plane with normal (5840707, −33016826, −17578201) that passes through the star (37, 21, 52), where float32 evaluates the test to −64.
 
 **An executable mirror.** The same test file replays the shader with `Math.fround`, operation by operation, over all ~470,000 drawn points. Computing in double and rounding to float is the correctly rounded binary32 result, because 53 ≥ 2·24 + 2 makes double rounding harmless for `+ − ×`. The proof covers every lattice and every plane under the bound. The test covers this lattice and is a cheap regression check.
 
@@ -313,7 +318,7 @@ Either way `|result| < ½ ⟺ V = 0`. That is `planeF_decides`. The decision is 
 
 - **Kernel-checked (Lean):** the identities in §6's table.
 - **Proved on FloatLib (Lean + Mathlib):** float32 Δ is exact for coefficients ≤ 1024, and the float32 plane test decides membership under `N·M < 2²⁴` (§6.1). Checked against FloatLib v2.0.0 as built in `~/softmax-float`. The package's own `lake build` was not run end to end.
-- **Unit tests (`node --test`, 24):** fixtures, invariants, models, planes, snap, interpolation, Farey ⇔ Δ = 1 in a box, walking distances, L/R toward φ, agreement with the Lean bridge, and the float32 replay of the shader.
+- **Unit tests (`node --test`, 35):** fixtures, invariants, models, planes, snap, interpolation, Farey ⇔ Δ = 1 in a box, walking distances, L/R toward φ, agreement with the Lean bridge, the float32 replay of the shader, shell orbits (primitive classes and multiples) against Gauss reduction, and the picture geometry of `src/math/picture.js`: Ford circles (centers, radii, Farey tangency, SL₂(ℤ)), their Poincaré pictures as conformal images, morph continuity, and the Ford forms in the lattice.
 - **Checked by eye in a browser:** every chapter on desktop (1440×900) and under true phone emulation (390×844, touch, via `scripts/shoot.mjs`), side-by-side and roots-only panes, Inside with the map and the retina.
 - **WebXR in the Immersive Web Emulator:** stereo session, glass window, ornament and inspector card, Inside floor placement.
 - **Not yet verified:** physical Quest or Vision Pro, hand-tracking gestures (they need a real headset), and performance on low-end phones.

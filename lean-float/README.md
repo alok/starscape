@@ -7,11 +7,11 @@ binary32 rounding (`Model.roundAt binary32`, nearest-even), that the shader gets
 | Theorem | Says |
 |---|---|
 | `fl_int` | every integer of size below 2²⁴ is a binary32 value, so rounding fixes it |
-| `deltaF_eq_of_le` | the shader's `b * b - 4.0 * a * c` is exactly Δ for coefficients up to 1024 (Starscape draws up to 95) |
+| `deltaF_eq_of_le` | the shader's `b * b - 4.0 * a * c` is exactly Δ for coefficients up to 1024 (Starscape draws up to 96) |
 | `planeF_decides` | the plane test `abs(-2.0*n.z*a + n.y*b - 2.0*n.x*c) < 0.5` is true exactly on the plane, whenever each of its three products is below 2²⁴ — even when the partial sum exceeds 2²⁴ and rounds |
 | `planeF_decides_of_le` | the same from bounds: normal factors ≤ N, coefficients ≤ M, N·M < 2²⁴ |
 
-All three depend only on `propext`, `Classical.choice` and `Quot.sound` (`#print axioms` at the end of the file).
+All four depend only on `propext`, `Classical.choice` and `Quot.sound` (`#print axioms` at the end of the file).
 
 The hypothesis of `planeF_decides_of_le` is checked at runtime: `gpuPlaneExact` in `src/math/planes.js` turns off the
 star marking for a plane past the bound, which can happen after absorbing a large γ. `test/float32.test.js` replays the

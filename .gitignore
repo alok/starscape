@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 *.log
 .lake/
+# The global ignore has *.png; the site needs its images.
+!assets/*.png

@@ -14,7 +14,7 @@ The tour follows Stange's seven chapters and adds a few things that only a spati
 
 - **Brightness is perspective.** Seen from the origin, `k·f` sits `k` times farther than `f` and has `Δ = k²Δ_f`, so a star's brightness falls like `1/|Δ|`. Simpler numbers shine brighter, the same rule that dims complicated numbers in plots of algebraic numbers. Every multiple hides exactly behind its primitive form, and leaning your eye off the origin shows them by parallax.
 - **Geodesics are straight because you see planes edge-on.** A plane through your eye looks like a line, which is why the Klein model's geodesics are chords.
-- **Ford circles are the stars on the horizon.** In the half-plane a star has radius `1/2a`. The double-root forms `k(qx − p)²` obey the same rule on ℝ, with radius `1/2kq²`.
+- **Ford circles are the stars on the horizon.** In the half-plane a star has radius `1/2a`. A double-root form `k(qx − p)²` lies on the light cone, and its picture is a horocycle: drawn as a disk (⚙ → disks, or chapter V's *Disks*), it is a ring tangent to ℝ at `p/q` with radius `∝ 1/2kq²`. The lattice includes these forms up to the star depth, so the Ford circles appear, each scaled by `R₀` about its point of tangency (exactly the Ford circles at `R₀ = 1`, larger than the viewer draws). `test/picture.test.js` checks the shader's CPU mirror: centers, radii, tangency of Farey neighbors, SL₂(ℤ)-invariance and the Poincaré picture.
 - **Dragging the sky is a Lorentz boost.** ρ identifies PSL₂(ℝ) with SO⁺(2,1). Stars slide along their shells `Δ = const`, and releasing settles on SL₂(ℤ), where the lattice lands on itself.
 - **Live inside the plane.** The *Inside* view puts you at the center of the Poincaré disk, at your own position in H², and walking applies true hyperbolic translations. The ground carries the Farey tessellation, whose edges are exactly the planes of the forms with `Δ = 1`, because `(qx − p)(sx − r)` has discriminant `(ps − qr)²`. Walk straight and your left/right turns spell the continued fraction of where you are heading. Lower your eye to zero and you see what a Flatlander sees: one line, all the way around. This is exact, because the disk is conformal and centered on you.
 
@@ -49,7 +49,8 @@ node scripts/shoot.mjs "http://127.0.0.1:8848/#c=5" phone.png --size 390x844 --m
 
 ```
 src/math/     forms (Δ, kinds, text, lattice), sl2 (Möbius, ρ(g), snap to SL₂(ℤ)),
-              models (Klein ↔ Poincaré ↔ half-plane), planes (geodesics), flatland (walking, Farey, L/R)
+              models (Klein ↔ Poincaré ↔ half-plane), planes (geodesics), flatland (walking, Farey, L/R),
+              picture (where each star is drawn in each picture: the shader's CPU mirror)
 src/render/   stars (one GPU point cloud: ρ(g) and the picture morph run in the vertex shader),
               scenery (cone, screen, rays, planes, shells), flatland (the Farey ground shader), palette
 src/views/    rig: Outside, Origin and Inside vantage points
@@ -62,8 +63,8 @@ scripts/      no-cache dev server; headless screenshots at exact device sizes
 ## What is checked, and how
 
 - **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text; class numbers; ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
-- **Lean 4** (`lean/`): see its README for which statements are kernel-checked.
-- **The GPU's arithmetic** (`lean-float/`, on FloatLib): the shader's float32 Δ is exact, and its plane test marks exactly the stars on the plane whenever the products stay below 2²⁴. The app checks that bound at runtime; `test/float32.test.js` replays the shader with `Math.fround`.
+- **Lean 4** (`lean/`): see [its README](lean/README.md) for which statements are kernel-checked, which are `decide` fixtures and which are compiled tests.
+- **The GPU's arithmetic** ([`lean-float/`](lean-float/README.md), on FloatLib): the shader's float32 Δ is exact, and its plane test marks exactly the stars on the plane whenever the products stay below 2²⁴. The app checks that bound at runtime; `test/float32.test.js` replays the shader with `Math.fround`.
 - **Visual and device behavior** is checked in desktop Chrome and under phone emulation (390×844, touch). WebXR has been exercised in an emulator, not yet on a physical headset.
 
 MIT licensed. three.js is © its authors, MIT.

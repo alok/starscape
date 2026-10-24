@@ -81,7 +81,7 @@ theorem deltaF_eq (a b c : ℤ) (h4a : |4 * a| < 2 ^ 24) (hbb : |b * b| < 2 ^ 24
   have e3 : fl (((4 * a : ℤ) : ℝ) * c) = ((4 * a * c : ℤ) : ℝ) := by rw [← fl_int _ hac]; push_cast; rfl
   rw [e1, e2, e3, ← fl_int _ hΔ]; push_cast; rfl
 
-/-- On every lattice with coefficients of size at most 1024 (Starscape draws up to 95), Δ is exact. -/
+/-- On every lattice with coefficients of size at most 1024 (Starscape draws up to 96), Δ is exact. -/
 theorem deltaF_eq_of_le (a b c : ℤ) (ha : |a| ≤ 1024) (hb : |b| ≤ 1024) (hc : |c| ≤ 1024) :
     deltaF a b c = ((b * b - 4 * a * c : ℤ) : ℝ) := by
   have hb2 : |b * b| ≤ 1024 * 1024 := by rw [abs_mul]; exact mul_le_mul hb hb (abs_nonneg _) (by norm_num)
@@ -172,6 +172,7 @@ theorem planeF_decides_of_le (na nb nc a b c M N : ℤ) (hM : 1 ≤ M) (hN : |2 
 
 end StarscapeFloat
 
+#print axioms StarscapeFloat.fl_int
 #print axioms StarscapeFloat.deltaF_eq_of_le
 #print axioms StarscapeFloat.planeF_decides
 #print axioms StarscapeFloat.planeF_decides_of_le

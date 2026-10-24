@@ -206,6 +206,9 @@ export class RootsPane {
     // Rationals on the boundary.
     ctx.font = 'italic 14px Newsreader, Georgia, serif'; ctx.fillStyle = 'rgba(220, 230, 250, 0.8)'; ctx.textAlign = 'center';
     for (const [t, text] of BOUNDARY_LABELS) {
+      // In the half-plane the point at ∞ has no place on ℝ; its formula lands on 0, under 0's own label.
+      const moved = G.actReal(this.g(), t);
+      if (this.morph > 2.5 && !(Math.abs(moved) < 1e9)) continue;
       const [px, py] = this.pixelOfBoundary(t);
       if (px < 8 || px > rect.w - 8 || py < 8 || py > rect.h - 4) continue;
       const below = this.morph > 2.5;
