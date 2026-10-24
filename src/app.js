@@ -88,20 +88,34 @@ const pane = new RootsPane({ world, stars, state, H, HP, onModel: markDirty });
 /** The 3D view's width; the roots pane takes the rest. On narrow screens the pane, when shown, is the whole view. */
 const view3d = { w: window.innerWidth, h: window.innerHeight };
 /**
- * Keep the subject of the 3D view out from under the tour card: shift the projection center into the free area.
- * Picking and labels go through the same projection matrix, so they stay consistent.
+ * Keep the subject of the 3D view out from under the tour card and the dock: shift the projection center into the
+ * free area. Picking and labels go through the same projection matrix, so they stay consistent.
  */
 function frameSafeArea(mode = rig.mode) {
-  const card = $('chapter'), open = !card.classList.contains('collapsed') && !narrow.matches && view3d.w > 0;
-  if (!open) { camera.clearViewOffset(); return; }
-  const r = card.getBoundingClientRect(), w = view3d.w, h = view3d.h;
-  const sx = Math.min(0.32 * r.width, 0.18 * w), sy = -Math.min(0.38 * r.height, 0.22 * h);
-  // Shift the picture's center by (sx, sy) toward the free corner. From the origin the disk is a bounded picture to
-  // be seen whole, so also pull back by k until its upper half fits above the new center (the visible window is
-  // k times the frame, offset in frame pixels). The lattice seen from outside has no edge and keeps its scale.
-  const k = mode === 'origin' ? 1 / (1 - (2 * Math.abs(sy)) / h) : 1;
-  camera.setViewOffset(w, h, -((k - 1) * w) / 2 - k * sx, -((k - 1) * h) / 2 - k * sy, k * w, k * h);
-  dirty = true;
+  const card = $('chapter'), w = view3d.w, h = view3d.h;
+  if (w <= 0) { camera.clearViewOffset(); return; }
+  const r = card.getBoundingClientRect(), d = $('dock').getBoundingClientRect();
+  // The visible window is k times the frame, offset in frame pixels: the picture's center moves by (sx, sy) on screen.
+  const offset = (sx, sy, k) => {
+    camera.setViewOffset(w, h, -((k - 1) * w) / 2 - k * sx, -((k - 1) * h) / 2 - k * sy, k * w, k * h);
+    dirty = true;
+  };
+  if (narrow.matches) {
+    // Phones: the card spans the width, so only lift the picture into the band between the dock and the card.
+    // From the origin the disk is about as tall as the screen is wide; pull back until it fits that band.
+    const top = d.bottom, bottom = r.height ? r.top : h;
+    offset(0, (top + bottom) / 2 - h / 2, mode === 'origin' ? Math.max(1, w / Math.max(1, bottom - top)) : 1);
+    return;
+  }
+  const open = !card.classList.contains('collapsed');
+  // Side by side (or at medium widths) the dock spans the top of the 3D view, and the free frame starts below it.
+  const top = d.height > 0 && d.top < 0.25 * h && d.left < w ? d.bottom + 8 : 0;
+  if (!open && !top) { camera.clearViewOffset(); return; }
+  const sx = open ? Math.min(0.32 * r.width, 0.18 * w) : 0, sy = open ? -Math.min(0.38 * r.height, 0.22 * h) : 0;
+  // Move toward the free corner, and down by half the dock. From the origin the disk is a bounded picture to be
+  // seen whole, so also pull back until its upper half fits between the dock and the new center. The lattice seen
+  // from outside has no edge and keeps its scale.
+  offset(sx, sy + top / 2, mode === 'origin' ? 1 / (1 - (top + 2 * Math.abs(sy)) / h) : 1);
 }
 function layout() {
   const W = window.innerWidth, Hh = window.innerHeight, narrowScreen = W < 760;
