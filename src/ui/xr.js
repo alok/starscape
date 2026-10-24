@@ -319,7 +319,8 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
         const roll = Math.atan2(new THREE.Vector3().crossVectors(a0, a1).dot(d), a0.dot(a1));
         if (!h.twisting && h.moved < 0.02 && Math.abs(roll) > 0.3) { h.twisting = true; h.roll = roll; }
         if (h.twisting) {
-          setG(G.normalize(G.multiply(G.rotationAboutI(-(roll - h.roll)), state.g)));
+          // ρ doubles angles, so half the wrist roll turns the sky 1:1.
+          setG(G.normalize(G.multiply(G.rotationAboutI(-(roll - h.roll) / 2), state.g)));
           h.roll = roll;
           continue;
         }

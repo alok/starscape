@@ -317,7 +317,9 @@ function stepGAnimation(dt) {
   return true;
 }
 function animateG(to, done) {
-  if (rig.reducedMotion) { setG(to); done?.(); return; }
+  // In a headset g moves the whole world around you, and gliding it without your body moving is the classic cause
+  // of motion sickness: cut instead.
+  if (rig.reducedMotion || renderer.xr.isPresenting) { setG(to); done?.(); return; }
   gAnim = { from: [...state.g], to, t: 0, duration: 0.65, done };
 }
 /** Fold an integral g into the exact labels: the selection and plane are relabeled by γ and g returns to 1. */
