@@ -12,6 +12,7 @@ import * as Mo from '../math/models.js';
 import { minus } from './format.js';
 
 const $ = id => document.getElementById(id);
+const PANE_EXPOSURE = 4.8;
 const MODELS = ['Klein', 'Poincaré', 'Half-plane'];
 const BOUNDARY_LABELS = [[0, '0'], [1, '1'], [-1, '−1'], [Infinity, '∞'], [2, '2'], [-2, '−2'], [0.5, '½'], [-0.5, '−½'], [1 / 3, '⅓'], [2 / 3, '⅔'], [-1 / 3, '−⅓'], [-2 / 3, '−⅔'], [3, '3'], [-3, '−3']];
 
@@ -138,8 +139,9 @@ export class RootsPane {
     camera.updateProjectionMatrix();
     const u = this.stars.uniforms, saved = { m: u.uMorph.value, h: u.uViewportH.value, rho: u.uRho.value.clone(), e: u.uExposure.value };
     u.uMorph.value = this.morph;
-    // Flat on a page every star is in front of you, so the pane can afford more light than the 3D view.
-    u.uExposure.value = saved.e * 2.2;
+    // Flat on a page every star is in front of you at the same distance: the light of the flattened picture seen
+    // from outside, whatever the 3D view is doing (its own exposure follows its vantage, morph and aspect).
+    u.uExposure.value = this.state.exposure * PANE_EXPOSURE;
     if (this.inside) u.uRho.value.identity();
     u.uViewportH.value = rect.h * this.dpr;
     const W = renderer.domElement.clientWidth, Hc = renderer.domElement.clientHeight;

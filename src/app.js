@@ -135,7 +135,10 @@ function syncUniforms() {
   // half-plane packs every star near ℝ, so it gets a little less.
   const flat = Math.min(1, Math.max(0, (m - 0.5) / 1.5)), halfPlane = Math.min(1, Math.max(0, m - 1.5) / 1.5);
   const view = rig.mode === 'outside' ? 2.2 : 1;
-  u.uExposure.value = state.exposure * view * (1 + 1.2 * flat) * (1 - 0.35 * halfPlane) * (1 - 0.25 * tw.get('floor'));
+  // In portrait the rig widens the field of view to keep the same width in sight, which packs ~1/aspect² more
+  // stars into each pixel; additive light would blow out where they crowd.
+  const portrait = renderer.xr.isPresenting ? 1 : Math.min(1, camera.aspect) ** 0.6;
+  u.uExposure.value = state.exposure * view * portrait * (1 + 1.2 * flat) * (1 - 0.35 * halfPlane) * (1 - 0.25 * tw.get('floor'));
   u.uR0.value = tw.get('r0') * state.size;
   u.uMultiples.value = +state.show.multiples;
   // Inside, a star is drawn at its true hyperbolic size on the ground; elsewhere the chosen style applies.
@@ -219,6 +222,9 @@ function frame(now) {
   if (!dirty && !moving && !presenting) return;
   dirty = false;
   syncUniforms();
+  // Labels project through the camera before render() would refresh its matrices; after a cut (reduced motion)
+  // nothing moves again, so stale matrices would leave them where the previous view put them.
+  scene.updateMatrixWorld(); camera.updateMatrixWorld();
   stars.uniforms.uViewportH.value = presenting ? (renderer.xr.getCamera().cameras[0]?.viewport?.w || 1600) : renderer.domElement.height;
   updatePlaneView();
   updateSelectionMarker();
