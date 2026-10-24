@@ -30,6 +30,29 @@ export function boundaryPoint(t) {
 }
 /** The upper half-plane root z of a timelike display vector, via Klein. */
 export const displayToRoot = (X, Y, Z) => kleinToHalfPlane(X / Y, Z / Y);
+/**
+ * The half-plane point shown at (x, h, z) on the screen Y = h of the current picture (`morph` 0–1 Klein, ~2
+ * Poincaré, ~3 the half-plane with scale `hp`), or null off the picture. Mirrors the shader in render/stars.js.
+ */
+export function screenToRoot(x, z, morph, h, hp) {
+  if (morph < 1.5) {
+    const u = x / h, v = z / h;
+    return u * u + v * v < 0.9995 ? kleinToHalfPlane(u, v) : null;
+  }
+  if (morph < 2.5) {
+    const p = x / h, q = z / h;
+    return p * p + q * q < 0.9995 ? kleinToHalfPlane(...poincareToKlein(p, q)) : null;
+  }
+  const w = { x: x / hp, y: z / hp + 1 };
+  return w.y > 1e-3 ? w : null;
+}
+/** Where a ray (origin o, direction d, display coordinates) meets the screen Y = h, as a root; or null. */
+export function rayToRoot(o, d, morph, h, hp) {
+  if (Math.abs(d.y) < 1e-6) return null;
+  const t = (h - o.y) / d.y;
+  return t > 0 ? screenToRoot(o.x + t * d.x, o.z + t * d.z, morph, h, hp) : null;
+}
+
 /** A unit-scale display direction (on Y = 1) for a root z. */
 export function rootToDisplay(z) {
   const [u, v] = halfPlaneToKlein(z);

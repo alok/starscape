@@ -16,7 +16,7 @@ import { GlassPanel, makeGrabber, FONTS } from './xrpanel.js';
 
 const ORIGIN_SCALE = 0.45, TABLE_SCALE = 0.035, FLOOR_SCALE = 3;   // meters per display unit
 
-export function setupXR({ renderer, scene, world, stars, state, api, markDirty, setG, animateG, absorb, H }) {
+export function setupXR({ renderer, scene, world, stars, state, api, markDirty, setG, animateG, absorb, H, HP }) {
   const xr = navigator.xr;
   const vrButton = document.getElementById('xr-vr'), arButton = document.getElementById('xr-ar');
   if (!xr) return { update: () => false };
@@ -218,13 +218,8 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     return best;
   }
   function rootOfRay(c) {
-    const { o, d } = rayLocal(c), m = stars.uniforms.uMorph.value;
-    if (Math.abs(d.y) < 1e-6) return null;
-    const t = (H - o.y) / d.y; if (t <= 0) return null;
-    const x = o.x + t * d.x, z = o.z + t * d.z;
-    if (m < 1.5) { const u = x / H, w = z / H; return u * u + w * w < 0.999 ? Mo.kleinToHalfPlane(u, w) : null; }
-    if (m < 2.5) { const p = x / H, q = z / H; return p * p + q * q < 0.999 ? Mo.kleinToHalfPlane(...Mo.poincareToKlein(p, q)) : null; }
-    const zz = { x: x / 2, y: z / 2 + 1 }; return zz.y > 1e-3 ? zz : null;
+    const { o, d } = rayLocal(c);
+    return Mo.rayToRoot(o, d, stars.uniforms.uMorph.value, H, HP);
   }
   function onSelectStart(c) {
     const hit = uiHit(c);
