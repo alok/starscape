@@ -745,7 +745,8 @@ const api = {
   setStyle: s => { state.style = s; $('s-style').value = String(s); dirty = true; },
   renderChapter: i => tour.go(i),
   chapter: () => ({ ...CHAPTERS[state.chapter], index: state.chapter, count: CHAPTERS.length }),
-  restoreFrame: () => { setWorldFrame(rig.mode === 'inside'); dirty = true; },
+  // The headset left its pose, projection and fov in the camera; the rig puts back the page's own.
+  restoreFrame: () => { setWorldFrame(rig.mode === 'inside'); rig.apply(); dirty = true; },
   get state() { return state; },
 };
 
