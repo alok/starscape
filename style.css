@@ -29,6 +29,13 @@ button:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 25
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 button[aria-pressed="true"] { background: rgba(156, 198, 255, 0.18); border-color: rgba(156, 198, 255, 0.55); color: #fff; }
 button.icon { width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; font-size: 16px; line-height: 1; }
+/* Touch: every button takes taps over at least 44 × 44 px without changing how it looks; packed rows grow only
+   vertically, so a tap never lands on a neighbour. */
+@media (pointer: coarse) {
+  :where(button) { position: relative; }
+  button::after { content: ''; position: absolute; inset: min(0px, (100% - 44px) / 2); }
+  .seg button::after, #c-dots button::after { left: 0; right: 0; }
+}
 button.primary { background: rgba(255, 213, 138, 0.16); border-color: rgba(255, 213, 138, 0.5); color: #fff3dc; }
 a { color: var(--accent-2); }
 
