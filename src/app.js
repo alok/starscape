@@ -86,6 +86,18 @@ const pane = new RootsPane({ world, stars, state, H, HP, onModel: markDirty });
 
 /** The 3D view's width; the roots pane takes the rest. On narrow screens the pane, when shown, is the whole view. */
 const view3d = { w: window.innerWidth, h: window.innerHeight };
+/**
+ * Keep the subject of the 3D view out from under the tour card: shift the projection center into the free area.
+ * Picking and labels go through the same projection matrix, so they stay consistent.
+ */
+function frameSafeArea() {
+  const card = $('chapter'), open = !card.classList.contains('collapsed') && !narrow.matches && view3d.w > 0;
+  if (!open) { camera.clearViewOffset(); return; }
+  const r = card.getBoundingClientRect();
+  const sx = Math.min(0.32 * r.width, 0.18 * view3d.w), sy = -Math.min(0.38 * r.height, 0.22 * view3d.h);
+  camera.setViewOffset(view3d.w, view3d.h, -sx, -sy, view3d.w, view3d.h);
+  dirty = true;
+}
 function layout() {
   const W = window.innerWidth, Hh = window.innerHeight, narrowScreen = W < 760;
   const paneW = !state.split ? 0 : narrowScreen ? W : Math.round(Math.min(760, Math.max(380, 0.44 * W)));
@@ -97,6 +109,7 @@ function layout() {
   view3d.w = W - paneW; view3d.h = Hh;
   pane.layout({ x: W - paneW, y: 0, w: paneW, h: Hh });
   camera.aspect = Math.max(view3d.w, 1) / Hh; camera.updateProjectionMatrix();
+  frameSafeArea();
   dirty = true;
 }
 function resize() {
@@ -117,8 +130,12 @@ function syncUniforms() {
   u.uMorph.value = m;
   u.uDepth.value = tw.get('depthOn') > 0.5 ? state.starDepth : 0;
   u.uBall.value = BALL;
-  // The half-plane packs every star near ℝ; ease the exposure there so the boundary does not wash out.
-  u.uExposure.value = state.exposure * (1 - 0.35 * Math.min(1, Math.max(0, m - 1.5) / 1.5)) * (1 - 0.25 * tw.get('floor'));
+  // Exposure by picture: from the origin the light falls off naturally; viewed from outside, or flattened into a
+  // picture, every point is at a similar distance, so the faint majority needs more light to be seen at all. The
+  // half-plane packs every star near ℝ, so it gets a little less.
+  const flat = Math.min(1, Math.max(0, (m - 0.5) / 1.5)), halfPlane = Math.min(1, Math.max(0, m - 1.5) / 1.5);
+  const view = rig.mode === 'outside' ? 2.2 : 1;
+  u.uExposure.value = state.exposure * view * (1 + 1.2 * flat) * (1 - 0.35 * halfPlane) * (1 - 0.25 * tw.get('floor'));
   u.uR0.value = tw.get('r0') * state.size;
   u.uMultiples.value = +state.show.multiples;
   // Inside, a star is drawn at its true hyperbolic size on the ground; elsewhere the chosen style applies.
@@ -564,6 +581,7 @@ const tour = {
     if (apply) applyScene(c.scene);
     updateShellReadout();
     writeHash();
+    frameSafeArea();
   },
   syncCollapse() {
     const open = narrow.matches ? $('chapter').classList.contains('expanded') : !$('chapter').classList.contains('collapsed');
@@ -573,6 +591,7 @@ const tour = {
   toggle() {
     $('chapter').classList.toggle(narrow.matches ? 'expanded' : 'collapsed');
     tour.syncCollapse();
+    frameSafeArea();
   },
 };
 CHAPTERS.forEach((c, i) => {

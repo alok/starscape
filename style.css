@@ -14,6 +14,8 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
+/* Elements with their own display (flex, grid) must still honor the hidden attribute. */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
 #scene { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; touch-action: none; outline: none; cursor: grab; background: radial-gradient(120% 90% at 50% 40%, #0a1022 0%, #050811 55%, #020308 100%); }
 #scene.dragging { cursor: grabbing; }
