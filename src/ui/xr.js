@@ -55,7 +55,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
 
   /** Inside: turn the head's horizontal drift from the disk's center into hyperbolic walking, and recenter. */
   function walkWithBody() {
-    if (api.rig.mode !== 'inside') return;
+    if (api.rig.mode !== 'inside') { center.set(head.x, 0, head.z); return; }   // enter Inside centered where you stand
     const dx = head.x - center.x, dz = head.z - center.z, d = Math.hypot(dx, dz);
     if (d < 0.004) return;
     // At the center of the Poincaré disk of radius R (meters), ds = 2|dp|/R in hyperbolic units.
@@ -338,7 +338,8 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
         if (Math.hypot(ax, ay) > 0.15) {
           const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(headQ);
           const heading = Math.atan2(fwd.z, -fwd.x), angle = heading - Math.atan2(ax, -ay);
-          setG(walk(state.g, angle, 1.0 * dt * Math.min(1, Math.hypot(ax, ay))));
+          // 0.2 units/s is about 1.2 m/s at your feet (the floor disk has 6 m per unit at its center): walking pace.
+          setG(walk(state.g, angle, 0.2 * dt * Math.min(1, Math.hypot(ax, ay))));
         }
       }
       if (gp) {
