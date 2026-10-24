@@ -227,7 +227,9 @@ function updatePlaneView() {
   if (!state.plane) { planeView.visible = false; return; }
   // The plane's normal moves like a form, n′ = ρ(g)n; its Euclidean display normal flips the Y sign.
   const nd = G.apply3(G.displayPushforward(state.g), F.toDisplay(...state.plane.normal)), m = tw.get('morph');
-  const chord = m >= 0.5 && m <= 1.5
+  // On the screen disk (morph ≥ ½, or the lattice with the screen shown, which sits exactly at a + c = H) the plane
+  // meets the sky in a chord: the 3D side of the pane's geodesic.
+  const chord = (m >= 0.5 || tw.get('screen') > 0.3) && m <= 1.5
     ? state.plane.endpoints.map(t => Mo.boundaryPoint(G.actReal(state.g, t))).map(([u, v]) => [u * H, H + 0.002, v * H])
     : null;
   setPlane(planeView, [nd[0], -nd[1], nd[2]], BALL * 1.6, chord);
