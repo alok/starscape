@@ -21,6 +21,7 @@ attribute vec2 meta;
 uniform mat3 uRho;
 uniform float uMorph, uH, uHP, uR0, uUnit, uViewportH;
 uniform float uMinPx, uKnee, uMaxPx, uExposure, uHaloPx, uFalloff;
+uniform float uStyle, uPointPx, uBeta;   // style 1: every point the same tiny size; brightness carries the weight
 uniform vec4 uKindAlpha;
 uniform float uDepth, uBall, uMultiples;
 uniform vec3 uPlane; uniform float uPlaneOn;
@@ -32,6 +33,7 @@ varying vec3 vColor;
 varying float vAlpha;
 varying float vCore;
 varying float vHalo;
+varying float vPoint;
 
 void main() {
   float a = coef.x, b = coef.y, c = coef.z;
@@ -59,7 +61,7 @@ void main() {
   vec2 p = k / (1.0 + s);
   vec3 P2 = vec3(p.x * uH, uH, p.y * uH);
   float rho = uR0 / sqrt(max(abs(delta), 1.0));
-  float r2 = kind == 3 ? 0.5 * r1 : uH * rho * (1.0 - dot(p, p)) * 0.5;
+  float r2 = kind == 3 ? 0.5 * r1 : uH * rho * max(0.0, 1.0 - dot(p, p)) * 0.5;
   float den = max(1.0 - k.y, 1e-6);
   vec2 z = vec2(k.x / den, s / den);
   vec3 P3 = vec3(z.x * uHP, uH, (z.y - 1.0) * uHP);
@@ -73,6 +75,8 @@ void main() {
   // Off the cone's inside there is no Klein point; exterior dust fades as the morph begins.
   if (kind == 2) alpha *= 1.0 - smoothstep(0.0, 0.6, m);
   if (kind == 3 && abs(aT) < 1e-3 && m > 2.0) alpha = 0.0;   // the root ∞ leaves the half-plane
+  // Invisible points leave now: off-screen positions or radii below would otherwise feed NaN into the blend.
+  if (alpha <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vAlpha = 0.0; vColor = vec3(0.0); vCore = 1.0; vHalo = 0.0; vPoint = 0.0; return; }
 
   // Emphasis: a selected plane (geodesic) or a discriminant shell.
   float emph = 1.0;
@@ -89,12 +93,25 @@ void main() {
   if (emph > 1.0) px *= 1.25;
   float dim = 1.0, drawn = px;
   // Physically the dimming exponent is 2 (energy conservation); a little more keeps Olbers' glow at bay.
+  px = max(px, 0.0);
   if (px < uMinPx) { dim = pow(px / uMinPx, uFalloff); drawn = uMinPx; }
   else if (px > uKnee) drawn = min(uMaxPx, uKnee * sqrt(px / uKnee));
   float size = 2.0 * drawn + uHaloPx;
+  vHalo = smoothstep(1.6, 4.5, drawn / uMinPx);
+  vPoint = uStyle;
+  if (uStyle > 0.5) {
+    // Points: geometry stays exact (no size), and the weight (3/|Δ|)^β becomes brightness.
+    // For the double-root forms k(qx − p)², a = kq² plays the role of |Δ| (Ford circles have radius 1/2a).
+    float weight = kind == 3 ? 1.0 / max(abs(aT), 1.0) : 3.0 / max(abs(delta), 1.0);
+    dim = min(1.6, pow(weight, uBeta));
+    if (kind == 3) dim = min(1.6, pow(1.0 / max(abs(a), 1.0), uBeta));
+    // The core stays one tiny size for every point. Heavy points get a faint point-spread halo, as bright
+    // stars do in a photograph, so brightness reads at a glance without changing the point itself.
+    float spread = smoothstep(0.12, 1.0, dim * uExposure);
+    drawn = uPointPx * 0.5; size = uPointPx * (1.0 + 4.0 * spread); vHalo = spread;
+  }
   gl_PointSize = size;
   vCore = 2.0 * drawn / size;
-  vHalo = smoothstep(1.6, 4.5, drawn / uMinPx);
 
   vec3 col = uKindColor[kind];
   if (kind == 0) col = texture2D(uRamp, vec2(clamp((log(max(-delta, 1.0)) - uLogLo) / uLogSpan, 0.0, 1.0), 0.5)).rgb;
@@ -108,12 +125,15 @@ varying vec3 vColor;
 varying float vAlpha;
 varying float vCore;
 varying float vHalo;
+varying float vPoint;
 void main() {
   float q = length(gl_PointCoord - 0.5) * 2.0;
   if (q > 1.0) discard;
   float r = q / vCore;   // in units of the core radius
-  float core = exp(-r * r * 1.8);
-  float halo = 0.09 * vHalo * exp(-r * r * 0.25) * (1.0 - q * q);
+  // Points (vCore = 1) are flat, crisp discs; disks keep a soft gaussian core.
+  bool point = vPoint > 0.5;
+  float core = point ? 1.0 - smoothstep(0.55, 1.0, r) : exp(-r * r * 1.8);
+  float halo = point ? 0.26 * vHalo * exp(-r * r * 0.12) * (1.0 - q * q) : 0.09 * vHalo * exp(-r * r * 0.25) * (1.0 - q * q);
   float f = (core + halo) * vAlpha;
   if (f < 0.003) discard;
   gl_FragColor = vec4(vColor * f, f);
@@ -145,6 +165,7 @@ export class StarField {
       uMorph: { value: 0 }, uH: { value: 4 }, uHP: { value: 2 }, uR0: { value: 0.12 },
       uUnit: { value: 1 }, uViewportH: { value: 800 },
       uMinPx: { value: 1.1 }, uKnee: { value: 3 }, uMaxPx: { value: 11 }, uExposure: { value: 1 }, uHaloPx: { value: 3 }, uFalloff: { value: 2.4 },
+      uStyle: { value: 1 }, uPointPx: { value: 2.5 }, uBeta: { value: 0.7 },
       uKindAlpha: { value: new THREE.Vector4(1, 0.55, 0.45, 0.9) },
       uDepth: { value: 0 }, uBall: { value: 6 }, uMultiples: { value: 1 },
       uPlane: { value: new THREE.Vector3() }, uPlaneOn: { value: 0 },

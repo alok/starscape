@@ -10,10 +10,13 @@ import { PALETTES, gradientCSS } from './render/palette.js';
 import { Rig } from './views/rig.js';
 import { CHAPTERS } from './ui/chapters.js';
 import { setupXR } from './ui/xr.js';
+import { makeFloor, setFloorG } from './render/flatland.js';
+import { walk, CuttingSequence, flatlandRetina } from './math/flatland.js';
 
 const $ = id => document.getElementById(id);
 const H = 4, HP = 2;                     // screen height and half-plane scale, display units
 const BALL = 6;
+const INSIDE_SCALE = 4;                  // the ground disk is H·4 = 16 world units across the radius
 const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -55,7 +58,8 @@ const screenDisk = makeScreen(H);
 const selection = makeSelection();
 const planeView = makePlane();
 const shell = makeShell();
-world.add(cone, screenDisk, planeView, shell, selection);
+const floor = makeFloor(H);
+world.add(cone, screenDisk, planeView, shell, floor, selection);
 screenDisk.visible = false;
 
 const rig = new Rig(camera, { reducedMotion: prefersReduced });
@@ -72,7 +76,7 @@ const state = {
   plane: null,              // { normal: [A,B,C], endpoints }
   shellK: 0,
   chapter: 0,
-  exposure: 1, size: 1,
+  exposure: 1.5, size: 1, style: 1,
   show: { cone: true, dust: true, lower: true, multiples: true },
   alpha: { upper: 1, lower: 0.8, exterior: 0.75, null: 1 },
 };
@@ -101,7 +105,7 @@ function stepTweens(dt) {
   return moving;
 }
 ['upper', 'lower', 'exterior', 'null'].forEach(k => tween('a_' + k, state.alpha[k], 0));
-tween('morph', 0, 0); tween('cone', 1, 0); tween('screen', 0, 0); tween('r0', 0.11, 0);
+tween('morph', 0, 0); tween('cone', 1, 0); tween('screen', 0, 0); tween('r0', 0.11, 0); tween('floor', 0, 0);
 
 // ---------------------------------------------------------------------------------------------------------------
 // Frame
@@ -115,6 +119,7 @@ function resize() {
   Object.assign(stars.uniforms, {});
   stars.uniforms.uMinPx.value = 1.15 * p; stars.uniforms.uKnee.value = 3.2 * p;
   stars.uniforms.uMaxPx.value = 12 * p; stars.uniforms.uHaloPx.value = 3 * p;
+  stars.uniforms.uPointPx.value = 2.1 * p;
   dirty = true;
 }
 window.addEventListener('resize', resize);
@@ -130,9 +135,11 @@ function syncUniforms() {
   u.uDepth.value = value('depthOn') > 0.5 ? starDepth : 0;
   u.uBall.value = BALL;
   // The half-plane packs every star near ℝ; ease the exposure there so the boundary does not wash out.
-  u.uExposure.value = state.exposure * (1 - 0.35 * Math.min(1, Math.max(0, value('morph') - 1.5) / 1.5));
+  u.uExposure.value = state.exposure * (1 - 0.35 * Math.min(1, Math.max(0, value('morph') - 1.5) / 1.5)) * (1 - 0.25 * value('floor'));
   u.uR0.value = value('r0') * state.size;
   u.uMultiples.value = state.show.multiples ? 1 : 0;
+  // Inside, a star is drawn at its true hyperbolic size on the ground; elsewhere the chosen style applies.
+  u.uStyle.value = rig.mode === 'inside' ? 0 : state.style;
   u.uShell.value = state.shellK;
   if (state.plane) { u.uPlane.value.set(...state.plane.normal); u.uPlaneOn.value = 1; } else u.uPlaneOn.value = 0;
   cone.visible = state.show.cone && value('cone') > 0.01;
@@ -217,16 +224,18 @@ let xr = null;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const xrActive = renderer.xr.isPresenting;
-  const moving = rig.update(dt) | stepTweens(dt) | stepGAnimation(dt) | (xr?.update(dt) ?? false);
+  const moving = rig.update(dt) | stepTweens(dt) | stepGAnimation(dt) | stepKeys(dt) | (xr?.update(dt) ?? false);
   if (!dirty && !moving && !xrActive) return;
   dirty = false;
   syncUniforms();
   const vh = xrActive ? (renderer.xr.getCamera().cameras[0]?.viewport?.w || 1600) : renderer.domElement.height;
   stars.uniforms.uViewportH.value = vh;
   stars.uniforms.uUnit.value = world.scale.x;
+  setFloorG(floor, state.g, value('floor'));
   updatePlaneView();
   updateSelectionMarker();
   if (!xrActive) updateLabels();
+  if (rig.mode === 'inside') updateInside();
   renderer.render(scene, camera);
 }
 
@@ -330,7 +339,8 @@ canvas.addEventListener('pointerdown', e => {
   if (pointers.size === 2) { drag = { kind: 'two', ...twoInfo() }; return; }
   const p = ndc(e), z = rootAt(p);
   const secondary = e.button === 2 || e.ctrlKey || e.altKey;
-  const kind = secondary ? (rig.mode === 'origin' ? 'look' : 'pan') : z ? 'sky' : rig.mode === 'origin' ? 'look' : 'orbit';
+  const firstPerson = rig.mode !== 'outside';
+  const kind = secondary ? (firstPerson ? 'look' : 'pan') : z ? 'sky' : firstPerson ? 'look' : 'orbit';
   drag = { kind, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, z, shift: e.shiftKey, moved: 0 };
   if (kind === 'sky') gAnim = null;
   canvas.classList.add('dragging');
@@ -346,7 +356,7 @@ canvas.addEventListener('pointermove', e => {
   if (drag.kind === 'two' && pointers.size === 2) {
     const now = twoInfo();
     rig.zoom(drag.dist / Math.max(now.dist, 1));
-    if (rig.mode === 'origin') rig.look(((now.cx - drag.cx) / h) * 1.6, ((now.cy - drag.cy) / h) * 1.6);
+    if (rig.mode !== 'outside') rig.look(((now.cx - drag.cx) / h) * 1.6, ((now.cy - drag.cy) / h) * 1.6);
     else rig.pan((now.cx - drag.cx) / h, (now.cy - drag.cy) / h);
     Object.assign(drag, now); dirty = true; return;
   }
@@ -370,7 +380,8 @@ function endPointer(e) {
   drag = null;
   canvas.classList.remove('dragging');
   if (d.kind !== 'two' && d.moved < 6) { click(e, d.shift || e.shiftKey); return; }
-  if (d.kind === 'sky' && state.snap) {
+  // Inside, dragging the ground is walking: it should stay where you leave it.
+  if (d.kind === 'sky' && state.snap && rig.mode !== 'inside') {
     const gamma = G.nearestIntegral(state.g);
     if (gamma) animateG(gamma, absorb);
   }
@@ -489,9 +500,43 @@ function lookAtStar(coef) {
 // Views and chapters
 function setView(mode) {
   // Seen from the origin a star needs a smaller radius: only the nearest few resolve, the rest are points of light.
-  tween('r0', mode === 'origin' ? 0.045 : 0.11, 1.2);
-  $('v-outside').setAttribute('aria-pressed', String(mode === 'outside'));
-  $('v-origin').setAttribute('aria-pressed', String(mode === 'origin'));
+  tween('r0', mode === 'origin' ? 0.045 : mode === 'inside' ? 0.04 : 0.11, 1.2);
+  for (const m of ['outside', 'origin', 'inside']) $('v-' + m).setAttribute('aria-pressed', String(mode === m));
+}
+/** Inside, the world is scaled up so the ground disk (the plane Y = h) sits at your feet, 16 units across. */
+function setWorldFrame(inside) {
+  world.scale.setScalar(inside ? INSIDE_SCALE : 1);
+  world.position.set(0, inside ? -H * INSIDE_SCALE : 0, 0);
+  camera.near = inside ? 0.002 : 0.02; camera.updateProjectionMatrix();
+}
+function fade(fn) {
+  $('veil').classList.add('on');
+  setTimeout(() => { fn(); dirty = true; setTimeout(() => $('veil').classList.remove('on'), 80); }, 300);
+}
+/** Leaving the plane: restore the lattice frame. Returns true if we were inside (so the caller fades). */
+function leaveInside() {
+  if (rig.mode !== 'inside') return false;
+  setWorldFrame(false);
+  tween('floor', 0, 0);
+  $('inside-hud').hidden = true; $('retina').hidden = $('retina-caption').hidden = true;
+  return true;
+}
+function goInside(pose = {}) {
+  if (rig.mode === 'inside') { rig.go('inside', pose, 0.8); return; }
+  fade(() => {
+    setView('inside');
+    setWorldFrame(true);
+    tween('morph', 2, 0); tween('floor', 1, 0); tween('cone', 0, 0); tween('screen', 0, 0); tween('depthOn', 1, 0);
+    Object.entries({ upper: 1, lower: 0, exterior: 0, null: 1 }).forEach(([k, v]) => tween('a_' + k, v, 0));
+    $('morph').value = '2';
+    state.plane = null; state.shellK = 0; shell.visible = false;
+    rig.go('inside', pose, 0);
+    // Start inside a triangle rather than on an edge: at the center of (0, 1, ∞), on the star x² − x + 1.
+    setG(G.toI({ x: 0.5, y: Math.sqrt(3) / 2 }));
+    cutting.reset();
+    $('inside-hud').hidden = false;
+    $('eye').value = String(rig.inside.eye);
+  });
 }
 function veilCut(fn) {
   // Under reduced motion a change of vantage point is a short fade through black, not a flight.
@@ -500,15 +545,17 @@ function veilCut(fn) {
   setTimeout(() => { fn(); dirty = true; setTimeout(() => $('veil').classList.remove('on'), 60); }, 260);
 }
 function goOrigin(pose = {}) {
-  setView('origin');
-  veilCut(() => rig.go('origin', { ...pose, lean: new THREE.Vector3(...(pose.leanArr ?? [0, 0, 0])) }));
+  const go = () => { setView('origin'); rig.go('origin', { ...pose, lean: new THREE.Vector3(...(pose.leanArr ?? [0, 0, 0])) }); };
+  if (rig.mode === 'inside') fade(() => { leaveInside(); tween('cone', 1, 0); tween('screen', 1, 0); setMorph(1, 0); rig.go('origin', {}, 0); go(); rig.apply(); });
+  else { setView('origin'); veilCut(go); }
   dirty = true;
 }
 function goOutside(pose = {}) {
-  setView('outside');
   const o = { ...pose };
   if (Array.isArray(o.target)) o.target = new THREE.Vector3(...o.target);
-  veilCut(() => rig.go('outside', o));
+  const go = () => { setView('outside'); rig.go('outside', o); };
+  if (rig.mode === 'inside') fade(() => { leaveInside(); tween('cone', 1, 0); setMorph(0, 0); go(); });
+  else { setView('outside'); veilCut(go); }
   dirty = true;
 }
 function leanTo(v) {
@@ -522,6 +569,7 @@ function setMorph(m, seconds = 1.1) {
 }
 
 function applyScene(s) {
+  if (s.view === 'inside') { goInside(s.pose ?? {}); if (s.select !== undefined) setTimeout(() => select(s.select, { quiet: true }), 320); return; }
   if (s.view === 'origin') goOrigin({ ...(s.pose ?? {}), leanArr: s.lean });
   else if (s.view === 'outside') goOutside(s.pose ?? {});
   if (s.morph !== undefined) setMorph(s.morph, 1.4);
@@ -594,7 +642,79 @@ function updateShellReadout() {
   el.innerHTML = `<b>Δ = −${k}</b>: h(−${k}) = ${forms.length}, reduced forms ${forms.map(f => `<span class="math">${F.polynomialText(...f)}</span>`).join(', ')}.`;
 }
 
-const api = { leanTo, goOrigin, goOutside, setMorph, applyIntegral, stepShell, select, get state() { return state; } };
+// ---------------------------------------------------------------------------------------------------------------
+// Inside: where you are, where you are heading, the turns you have made, and the Flatland retina
+const cutting = new CuttingSequence();
+const zText = z => `${z.x.toFixed(3).replace('-', '−')} ${z.y >= 0 ? '+' : '−'} ${Math.abs(z.y).toFixed(3)}i`;
+/** Continued fraction [a0; a1, …] of x, up to n terms. */
+function continuedFraction(x, n = 7) {
+  const out = [];
+  for (let i = 0; i < n && Number.isFinite(x); i++) {
+    const a = Math.floor(x); out.push(a);
+    const f = x - a; if (f < 1e-9) break; x = 1 / f;
+  }
+  return out;
+}
+const cfText = a => (a.length ? `[${a[0]}${a.length > 1 ? '; ' + a.slice(1).join(', ') : ''}${a.length >= 7 ? ', …' : ''}]` : '');
+let lastInside = '';
+function updateInside() {
+  const here = G.act(G.inverse(state.g), { x: 0, y: 1 });
+  const [hx, hz] = rig.heading(), heading = Math.atan2(hz, hx);
+  // Which of your Farey triangle's vertices is on your left, in the current disk picture.
+  const leftOf = t => {
+    const [bu, bv] = Mo.boundaryPoint(G.actReal(state.g, t));
+    return bu * hz - bv * hx > 0;
+  };
+  cutting.update(here, leftOf);
+  // The rim point straight ahead, pulled back to the base picture: where this geodesic ends.
+  const u = Math.cos(heading), v = Math.sin(heading);
+  const xi = G.actReal(G.inverse(state.g), v >= 1 - 1e-12 ? Infinity : u / (1 - v));
+  const key = `${here.x.toFixed(4)},${here.y.toFixed(4)},${heading.toFixed(3)},${cutting.letters.length}`;
+  if (key !== lastInside) {
+    lastInside = key;
+    $('h-here').textContent = `${zText(here)}  ·  ${G.hyperbolicDistance(here, { x: 0, y: 1 }).toFixed(2)} from i`;
+    $('h-heading').textContent = Number.isFinite(xi) ? `${xi.toFixed(5).replace('-', '−')} = ${cfText(continuedFraction(xi))}` : '∞';
+    const runs = cutting.runs().map(r => r.ch + (r.n > 1 ? '' + r.n : '')).join(' ');
+    $('h-turns').textContent = runs || 'walk across a line';
+  }
+  updateRetina(heading);
+}
+
+// The Flatland retina: one pixel per direction, recomputed only when you move or turn.
+const retina = $('retina'), retinaCtx = retina.getContext('2d');
+let retinaKey = '';
+function eyeLabel() {
+  const h = rig.inside.eye;
+  $('eye-v').textContent = h < 0.12 ? 'in the plane' : h < 1.2 ? 'crouching' : h < 2.6 ? 'standing' : 'above';
+}
+function updateRetina(heading) {
+  const inPlane = rig.inside.eye < 0.12;
+  retina.hidden = $('retina-caption').hidden = !inPlane;
+  if (!inPlane) return;
+  const key = state.g.map(x => x.toFixed(6)).join() + heading.toFixed(4) + state.palette;
+  if (key === retinaKey) return;
+  retinaKey = key;
+  const W = 720, palette = d => PALETTES[state.palette].ramp(Math.min(1, Math.max(0, Math.log(d / 3) / Math.log(80))));
+  const view = flatlandRetina(stars, state.g, { width: W, r0: 0.18, palette });
+  retina.width = W; retina.height = 1;
+  const img = retinaCtx.createImageData(W, 1);
+  for (let x = 0; x < W; x++) {
+    // Screen column x looks in direction heading + φ, with φ = 0 at the center and your left on the left.
+    const phi = ((x + 0.5) / W - 0.5) * 2 * Math.PI, theta = heading + phi;
+    const k = (((Math.floor(((theta + Math.PI) / (2 * Math.PI)) * W) % W) + W) % W);
+    const src = (k + W / 2) % W;   // flatlandRetina bins start at angle 0
+    for (let c = 0; c < 3; c++) img.data[4 * x + c] = Math.min(255, 255 * view.color[3 * src + c]);
+    img.data[4 * x + 3] = 255;
+  }
+  retinaCtx.putImageData(img, 0, 0);
+}
+$('eye').addEventListener('input', e => { rig.setEye(Number(e.target.value)); eyeLabel(); retinaKey = ''; dirty = true; });
+$('h-reset').onclick = () => { animateG([...G.identity]); cutting.reset(); };
+$('h-clear').onclick = () => { cutting.reset(); lastInside = ''; dirty = true; };
+$('v-inside').onclick = () => goInside();
+eyeLabel();
+
+const api = { leanTo, goOrigin, goOutside, goInside, setMorph, applyIntegral, stepShell, select, setEye: h => { rig.setEye(h); $('eye').value = String(h); eyeLabel(); dirty = true; }, get state() { return state; } };
 
 // ---------------------------------------------------------------------------------------------------------------
 // Dock, settings and keys
@@ -621,6 +741,8 @@ paletteUI();
 $('s-palette').onchange = e => { state.palette = e.target.value; stars.setPalette(state.palette); paletteUI(); dirty = true; };
 $('s-depth').onchange = e => { starDepth = depthFor(e.target.value); dirty = true; };
 $('s-exposure').oninput = e => { state.exposure = Number(e.target.value); dirty = true; };
+$('s-style').onchange = e => { state.style = Number(e.target.value); dirty = true; };
+$('s-beta').oninput = e => { stars.uniforms.uBeta.value = Number(e.target.value); $('s-beta-v').textContent = Number(e.target.value).toFixed(2); dirty = true; };
 $('s-size').oninput = e => { state.size = Number(e.target.value); dirty = true; };
 $('s-cone').onchange = e => { state.show.cone = e.target.checked; dirty = true; };
 $('s-dust').onchange = e => { state.show.dust = e.target.checked; dirty = true; };
@@ -630,28 +752,48 @@ $('s-motion').checked = rig.reducedMotion;
 $('s-motion').onchange = e => { rig.reducedMotion = e.target.checked; };
 
 const keysDown = new Set();
+const MOVE_KEYS = /^(arrow(up|down|left|right)|[wasdqe])$/;
 window.addEventListener('keydown', e => {
   if (e.target.closest('input, select, textarea')) return;
-  const k = e.key;
+  const k = e.key, lower = k.toLowerCase();
+  // First-person vantages own the movement keys while they are held.
+  if ((rig.mode === 'inside' && MOVE_KEYS.test(lower)) || (rig.mode === 'origin' && /^[wasdqe]$/.test(lower))) {
+    keysDown.add(lower); e.preventDefault(); return;
+  }
   if (k === 'ArrowRight') renderChapter(state.chapter + 1);
   else if (k === 'ArrowLeft') renderChapter(state.chapter - 1);
   else if (k === 'o' || k === 'O') (rig.mode === 'origin' ? goOutside() : goOrigin());
+  else if (k === 'i' || k === 'I') (rig.mode === 'inside' ? goOrigin() : goInside());
   else if (k === 'p' || k === 'P') setMorph((Math.round(value('morph')) + 1) % 4);
   else if (k === 't') applyIntegral('T');
   else if (k === 'T') applyIntegral('Tinv');
-  else if (k === 's' && rig.mode !== 'origin') applyIntegral('S');
+  else if (k === 's') applyIntegral('S');
   else if (k === 'Escape') { select(null); state.plane = null; state.shellK = 0; shell.visible = false; dirty = true; }
   else if (k === '?') $('help-open').click();
   else if (/^[1-9]$/.test(k) && Number(k) <= CHAPTERS.length) renderChapter(Number(k) - 1);
-  keysDown.add(k.toLowerCase());
 });
 window.addEventListener('keyup', e => keysDown.delete(e.key.toLowerCase()));
-setInterval(() => {
-  if (rig.mode !== 'origin' || !keysDown.size) return;
-  const s = 0.05, dx = (keysDown.has('d') - keysDown.has('a')) * s, dz = (keysDown.has('s') - keysDown.has('w')) * s;
-  const dy = (keysDown.has('e') - keysDown.has('q')) * s;
-  if (dx || dy || dz) { rig.lean(dx, dy, dz); dirty = true; }
-}, 16);
+window.addEventListener('blur', () => keysDown.clear());
+const held = k => (keysDown.has(k) ? 1 : 0);
+/** Movement from held keys, called every frame: leaning at the origin, walking inside. */
+function stepKeys(dt) {
+  if (!keysDown.size || rig.animating) return false;
+  if (rig.mode === 'origin') {
+    const s = 2.4 * dt;
+    rig.lean((held('d') - held('a')) * s, (held('e') - held('q')) * s, (held('s') - held('w')) * s);
+    return true;
+  }
+  if (rig.mode !== 'inside') return false;
+  const turn = (held('arrowleft') + held('q') - held('arrowright') - held('e')) * 1.6 * dt;
+  if (turn) rig.look(-turn, 0);
+  const forward = held('w') + held('arrowup') - held('s') - held('arrowdown'), side = held('d') - held('a');
+  if (forward || side) {
+    const [hx, hz] = rig.heading(), heading = Math.atan2(hz, hx);
+    const angle = heading + Math.atan2(side, forward), speed = 1.1 * dt * Math.hypot(forward, side) / Math.max(1, Math.hypot(forward, side));
+    setG(walk(state.g, angle, speed));
+  }
+  return true;
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Shareable state in the URL hash: #c=3&sel=1,1,1
@@ -673,4 +815,4 @@ resize();
 readHash();
 xr = setupXR({ renderer, scene, camera, world, rig, stars, state, api, markDirty: () => { dirty = true; }, rootAtRay: null, setG, animateG, absorb, H });
 renderer.setAnimationLoop(frame);
-window.starscape = { state, rig, stars, api, setG, G, F };   // for the console and tests
+window.starscape = { state, rig, stars, api, setG, G, F, tween, value };   // for the console and tests

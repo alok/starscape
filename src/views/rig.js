@@ -1,6 +1,7 @@
 // Camera rig with two vantage points:
 //   'outside' — orbit the lattice from a distance (drag to orbit, scroll/pinch to zoom, right-drag to pan);
-//   'origin'  — the eye at the zero polynomial, looking out (look with right-drag/two fingers, scroll to widen).
+//   'origin'  — the eye at the zero polynomial, looking out (look with right-drag/two fingers, scroll to widen);
+//   'inside'  — standing on the hyperbolic plane at its center, eye `eye` above the ground (0 = in the plane).
 // Nothing moves unless the user moves it. Transitions between vantage points run only on request, ease in and out,
 // and become a hard cut under prefers-reduced-motion.
 import * as THREE from 'three';
@@ -17,6 +18,7 @@ export class Rig {
     this.mode = 'outside';
     this.outside = { target: new THREE.Vector3(0, 1.6, 0), radius: 17, theta: 0.75, phi: 1.12, fov: 42 };
     this.origin = { lean: new THREE.Vector3(), yaw: 0, pitch: Math.PI / 2 - 0.0001, fov: 92 };
+    this.inside = { yaw: 0, pitch: -0.2, eye: 1.7, fov: 72 };
     this.anim = null;
     this.velocity = { theta: 0, phi: 0 };
     this.apply();
@@ -32,7 +34,14 @@ export class Rig {
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(o.pitch, o.yaw, 0, 'YXZ'));
     return { position: o.lean.clone(), quaternion: q, fov: o.fov };
   }
-  pose() { return this.mode === 'outside' ? this.outsidePose() : this.originPose(); }
+  insidePose(o = this.inside) {
+    // In the plane itself (eye → 0) a creature can only look along the ground.
+    // Higher up, look further down at the ground beneath you.
+    const pitch = (o.pitch - 0.07 * Math.max(0, o.eye - 1.7)) * Math.min(1, o.eye / 0.4);
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, o.yaw, 0, 'YXZ'));
+    return { position: new THREE.Vector3(0, Math.max(o.eye, 0.004), 0), quaternion: q, fov: o.fov };
+  }
+  pose() { return this.mode === 'outside' ? this.outsidePose() : this.mode === 'origin' ? this.originPose() : this.insidePose(); }
 
   /** Poses store a field of view for landscape; in portrait we widen it so the same width stays in view. */
   fitFov(fov) {
@@ -98,7 +107,7 @@ export class Rig {
   zoom(factor) {
     if (this.anim) return;
     if (this.mode === 'outside') this.outside.radius = clamp(this.outside.radius * factor, 2.5, 80);
-    else this.origin.fov = clamp(this.origin.fov * factor, 20, 125);
+    else this[this.mode].fov = clamp(this[this.mode].fov * factor, 20, 125);
     this.apply();
   }
   pan(dx, dy) {
@@ -111,11 +120,17 @@ export class Rig {
     this.apply();
   }
   look(dYaw, dPitch) {
-    if (this.anim || this.mode !== 'origin') return;
-    const o = this.origin;
+    if (this.anim || this.mode === 'outside') return;
+    const o = this[this.mode];
     o.yaw = wrapAngle(o.yaw - dYaw);
     o.pitch = clamp(o.pitch + dPitch, -Math.PI / 2 + 1e-4, Math.PI / 2 - 1e-4);
     this.apply();
+  }
+  setEye(h) { this.inside.eye = clamp(h, 0, 8); if (this.mode === 'inside' && !this.anim) this.apply(); }
+  /** The direction you face, projected onto the ground (unit (x, z) in world coordinates). */
+  heading() {
+    const yaw = this[this.mode]?.yaw ?? 0;
+    return [-Math.sin(yaw), -Math.cos(yaw)];
   }
   /** Move the eye slightly off the origin (display units, in the camera's horizontal frame). */
   lean(dx, dy, dz) {

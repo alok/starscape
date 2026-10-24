@@ -59,6 +59,7 @@
     <div class="seg" role="group" aria-label="Vantage point">
       <button id="v-outside" aria-pressed="true" title="Orbit the lattice (O toggles)">Outside</button>
       <button id="v-origin" aria-pressed="false" title="Stand at the zero polynomial (O toggles)">Origin</button>
+      <button id="v-inside" aria-pressed="false" title="Live inside the hyperbolic plane (I)">Inside</button>
     </div>
     <label class="morph" title="Slide every star along its ray onto the screen, then change model (P)">
       <span class="morph-labels"><span>lattice</span><span>Klein</span><span>Poincaré</span><span>half-plane</span></span>
@@ -81,6 +82,20 @@
 
   <div id="g-readout" class="readout" aria-live="polite"></div>
 
+  <canvas id="retina" hidden aria-label="What a creature living in the hyperbolic plane sees: one line, all the way around"></canvas>
+  <p id="retina-caption" hidden>Your whole visual world, if you lived in the plane: one line, all the way around. Ahead is the center; behind you wraps to both edges.</p>
+
+  <section id="inside-hud" class="glass" hidden aria-label="Inside the hyperbolic plane">
+    <label class="eye">Eye <input type="range" id="eye" min="0" max="6" step="0.01" value="1.7" aria-label="Eye height above the plane"><span id="eye-v">standing</span></label>
+    <dl>
+      <dt>you are at</dt><dd id="h-here"></dd>
+      <dt>heading to</dt><dd id="h-heading"></dd>
+      <dt>turns</dt><dd id="h-turns" class="turns"></dd>
+    </dl>
+    <p class="hint">W A S D or arrows walk · drag the ground to pull the world · right-drag to look</p>
+    <div class="row"><button id="h-reset" type="button">Back to i</button><button id="h-clear" type="button">Clear turns</button></div>
+  </section>
+
   <section id="settings" class="glass sheet" hidden aria-label="Settings">
     <h3>Settings</h3>
     <label>Stars <select id="s-depth">
@@ -89,10 +104,15 @@
       <option value="57">her full sky (a + c ≤ 57)</option>
       <option value="80">dense (a + c ≤ 80)</option>
     </select></label>
+    <label>Stars drawn as <select id="s-style">
+      <option value="1" selected>points: brightness = weight</option>
+      <option value="0">disks: size = hyperbolic radius</option>
+    </select></label>
+    <label title="Brightness ∝ (3/|Δ|)^β. β = 1 is what you see from the origin: k·f is k times farther and k² times the discriminant.">Weight exponent β <input type="range" id="s-beta" min="0.2" max="1.6" step="0.01" value="0.7"> <span id="s-beta-v">0.70</span></label>
     <label>Colors <select id="s-palette"></select></label>
     <div id="s-legend"><div id="s-bar"></div><div class="ticks"><span>|Δ| = 3</span><span>240</span></div>
       <div class="keys"><span><i class="k-ext"></i>two real roots</span><span><i class="k-null"></i>double root</span><span><i class="k-low"></i>lower cone</span></div></div>
-    <label>Brightness <input type="range" id="s-exposure" min="0.3" max="3" step="0.01" value="1"></label>
+    <label>Brightness <input type="range" id="s-exposure" min="0.3" max="4" step="0.01" value="1.5"></label>
     <label>Star size <input type="range" id="s-size" min="0.4" max="2.5" step="0.01" value="1"></label>
     <label class="check"><input type="checkbox" id="s-cone" checked> Light cone</label>
     <label class="check"><input type="checkbox" id="s-dust" checked> Dust outside the cone</label>

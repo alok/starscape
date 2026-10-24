@@ -105,6 +105,21 @@ button.xr { background: rgba(255, 213, 138, 0.14); border-color: rgba(255, 213, 
 #s-legend .keys { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 #s-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
 
+/* Inside: the HUD and the Flatland retina */
+#inside-hud { position: fixed; top: calc(max(14px, env(safe-area-inset-top)) + 64px); left: var(--gutter); width: min(400px, calc(100vw - 2 * var(--gutter))); padding: 10px 14px; z-index: 6; }
+#inside-hud .eye { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); }
+#inside-hud .eye input { flex: 1; }
+#inside-hud .eye span { width: 74px; text-align: right; font: italic 14px var(--serif); color: var(--ink); }
+#inside-hud dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 6px 0 4px; font-size: 13px; }
+#inside-hud dt { color: var(--ink-3); }
+#inside-hud dd { margin: 0; font: 15px var(--serif); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#inside-hud .turns { font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.06em; color: var(--accent); direction: rtl; }
+#inside-hud .hint { margin: 2px 0 6px; font-size: 12px; color: var(--ink-3); }
+#inside-hud .row { display: flex; gap: 6px; }
+#inside-hud .row button { font-size: 12.5px; padding: 4px 9px; }
+#retina { position: fixed; left: 0; right: 0; top: 42%; height: 72px; width: 100vw; z-index: 3; image-rendering: pixelated; border-top: 1px solid rgba(160,190,240,0.25); border-bottom: 1px solid rgba(160,190,240,0.25); background: #02030a; }
+#retina-caption { position: fixed; left: 50%; top: calc(42% + 80px); transform: translateX(-50%); width: min(560px, 90vw); text-align: center; font: italic 15px/1.4 var(--serif); color: var(--ink-2); z-index: 3; margin: 0; }
+
 /* Labels on the boundary of the sky */
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
 #labels span { position: absolute; transform: translate(-50%, -50%); font: italic 15px/1 var(--serif); color: rgba(220, 230, 250, 0.72); text-shadow: 0 0 6px #000; white-space: nowrap; }
@@ -114,7 +129,8 @@ button.xr { background: rgba(255, 213, 138, 0.14); border-color: rgba(255, 213, 
 
 /* Medium widths: the dock moves to the top so it never covers the tour card. */
 @media (min-width: 761px) and (max-width: 1180px) {
-  #dock { top: max(14px, env(safe-area-inset-top)); bottom: auto; }
+  #dock { top: max(14px, env(safe-area-inset-top)); bottom: auto; max-width: calc(100vw - 230px); }
+  .morph { width: 180px; }
   #inspector { top: 82px; }
   .sheet { bottom: auto; top: 82px; }
 }
@@ -145,5 +161,7 @@ button.xr { background: rgba(255, 213, 138, 0.14); border-color: rgba(255, 213, 
   #chapter.expanded ~ #inspector { display: none; }
   .readout { top: auto; bottom: calc(env(safe-area-inset-bottom) + 172px); font-size: 13px; width: 92vw; text-align: center; }
   .sheet { left: 10px; right: 10px; width: auto; bottom: auto; top: 60px; max-height: calc(100dvh - 80px); }
+  #inside-hud { top: 56px; left: 10px; right: 10px; width: auto; transform: none; padding: 8px 10px; }
+  #inside-hud .hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { #veil { transition: none; } }

@@ -95,6 +95,19 @@ export const CHAPTERS = [
       alpha: { upper: 1, lower: 0.15, exterior: 0.8, null: 0.8 }, cone: true, screen: true, shell: 0, plane: [1, 0, -1], select: [1, 1, 1] },
   },
   {
+    eyebrow: 'IX · inside',
+    title: 'Live in the plane',
+    body: `<p>Until now you have looked <em>at</em> the hyperbolic plane. Now stand in it. The ground is the plane itself, drawn in the Poincaré model centered on you. Walk (W A S D, or drag the ground) and every step is a true hyperbolic translation: the stars and the Farey triangles flow past you, and the 3D lattice is being Lorentz-boosted the whole time.</p>
+<p>The lines on the ground are the Farey tessellation. Its edges are exactly the planes of the dust points with ${m('Δ = 1')}, because ${m('(qx − p)(sx − r)')} has discriminant ${m('(ps − qr)²')}. Walk straight and note whether each triangle's pivot vertex passes on your left or right. The run lengths of L and R are the continued fraction of where you are heading (Series).</p>
+<p>Lower your eye to zero and you are a Flatlander. Your whole world is one line, the strip across the middle. Because the disk is conformal and centered on you, its angles are exactly what a creature in H² sees.</p>`,
+    scene: { view: 'inside', pose: { yaw: 0, pitch: -0.22, eye: 1.7, fov: 72 }, select: [1, 1, 1] },
+    actions: [
+      { label: 'Stand', run: app => app.setEye(1.7) },
+      { label: 'Fly above', run: app => app.setEye(5) },
+      { label: 'Become a Flatlander', run: app => app.setEye(0) },
+    ],
+  },
+  {
     eyebrow: 'free play',
     title: 'Explore',
     body: `<p>Everything is live. Fly out and back, drag the sky, morph the picture, cut planes. In a headset, <b>Enter VR</b> puts your head at the origin: the cone opens above you, and leaning really does reveal the hidden multiples.</p>
