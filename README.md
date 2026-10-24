@@ -1,0 +1,50 @@
+# Starscape
+
+**The integer quadratics as a night sky.** Every polynomial `ax² + bx + c` with integer coefficients is a point of ℤ³. Stand at the origin, the zero polynomial, and look up: your sky is the hyperbolic plane, and its stars are the algebraic numbers of degree two.
+
+**[Open Starscape](https://alok.github.io/starscape/)**. It runs in any modern browser. On a headset it offers **Enter VR**.
+
+This is an independent implementation inspired by **Katherine E. Stange**’s [Starscape / Lattice viewer](https://www.katestange.net/starscape-lattice/) and her talk [Illustrating Mathematics](https://katestange.net/talks/math-exploration/). The mathematics is from **Edmund Harriss, Katherine E. Stange and Steve Trettel**, [*Algebraic Number Starscapes*](https://arxiv.org/abs/2008.07655) (§4.2). The L/R coding of geodesics is due to **Caroline Series**, [*The Modular Surface and Continued Fractions*](https://doi.org/10.1112/jlms/s2-31.1.69) (1985). No code or media from the original viewer is included.
+
+## What the 3D medium adds
+
+The tour follows Stange's seven chapters and adds a few things that only a spatial view can show:
+
+- **Brightness is perspective.** Seen from the origin, `k·f` sits `k` times farther than `f` and has `Δ = k²Δ_f`, so a star's brightness falls like `1/|Δ|`. Simpler numbers shine brighter, the same rule that dims complicated numbers in plots of algebraic numbers. Every multiple hides exactly behind its primitive form, and leaning your eye off the origin shows them by parallax.
+- **Geodesics are straight because you see planes edge-on.** A plane through your eye looks like a line, which is why the Klein model's geodesics are chords.
+- **Ford circles are the stars on the horizon.** In the half-plane a star has radius `1/2a`. The double-root forms `k(qx − p)²` obey the same rule on ℝ, with radius `1/2kq²`.
+- **Dragging the sky is a Lorentz boost.** ρ identifies PSL₂(ℝ) with SO⁺(2,1). Stars slide along their shells `Δ = const`, and releasing settles on SL₂(ℤ), where the lattice lands on itself.
+- **Live inside the plane.** The *Inside* view puts you at the center of the Poincaré disk, at your own position in H², and walking applies true hyperbolic translations. The ground carries the Farey tessellation, whose edges are exactly the planes of the forms with `Δ = 1`, because `(qx − p)(sx − r)` has discriminant `(ps − qr)²`. Walk straight and your left/right turns spell the continued fraction of where you are heading. Lower your eye to zero and you see what a Flatlander sees: one line, all the way around. This is exact, because the disk is conformal and centered on you.
+
+## Points, color and brightness
+
+By default every point is drawn the same tiny size, because these are points of a lattice. Color shows `|Δ|` on Stange's fixed logarithmic range 3…240, and brightness shows a weight `(3/|Δ|)^β`. With `β = 1` this is exactly what you would see from the origin. Settings switch to disks sized by hyperbolic radius, as in her viewer.
+
+## Run it
+
+It is a static site with no build step. three.js r180 is vendored in `vendor/`.
+
+```bash
+python3 scripts/serve.py 8848     # then open http://127.0.0.1:8848
+node --test test/                 # the mathematics: fixtures, invariants, Farey/Δ = 1, walking
+```
+
+## Layout
+
+```
+src/math/     forms (Δ, kinds, text, lattice), sl2 (Möbius, ρ(g), snap to SL₂(ℤ)),
+              models (Klein ↔ Poincaré ↔ half-plane), planes (geodesics), flatland (walking, Farey, L/R)
+src/render/   stars (one GPU point cloud: ρ(g) and the picture morph run in the vertex shader),
+              scenery (cone, screen, rays, planes, shells), flatland (the Farey ground shader), palette
+src/views/    rig: Outside, Origin and Inside vantage points
+src/ui/       chapters (the tour), xr (WebXR)
+lean/         the Lean 4 version: kernel-checked identities and an exact data bridge
+```
+
+## What is checked, and how
+
+- **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text; class numbers; ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
+- **Lean 4** (`lean/`): see its README for which statements are kernel-checked.
+- **Visual and device behavior** is checked by hand in desktop Chrome and a phone-sized viewport. WebXR has been exercised in an emulator, not yet on a physical headset.
+
+MIT licensed. three.js is © its authors, MIT.

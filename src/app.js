@@ -754,7 +754,7 @@ $('s-motion').onchange = e => { rig.reducedMotion = e.target.checked; };
 const keysDown = new Set();
 const MOVE_KEYS = /^(arrow(up|down|left|right)|[wasdqe])$/;
 window.addEventListener('keydown', e => {
-  if (e.target.closest('input, select, textarea')) return;
+  if (e.target?.closest?.('input, select, textarea')) return;
   const k = e.key, lower = k.toLowerCase();
   // First-person vantages own the movement keys while they are held.
   if ((rig.mode === 'inside' && MOVE_KEYS.test(lower)) || (rig.mode === 'origin' && /^[wasdqe]$/.test(lower))) {
