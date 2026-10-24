@@ -675,9 +675,11 @@ tour.syncCollapse();
 // ---------------------------------------------------------------------------------------------------------------
 // Dock and settings
 
-$('v-outside').onclick = () => goOutside();
-$('v-origin').onclick = () => goOrigin();
-$('v-inside').onclick = () => goInside();
+// On a phone the roots pane replaces the 3D view; asking for a vantage asks to see it.
+const leaveRootsOnly = () => { if (document.body.classList.contains('roots-only')) toggleSplit(); };
+$('v-outside').onclick = () => { leaveRootsOnly(); goOutside(); };
+$('v-origin').onclick = () => { leaveRootsOnly(); goOrigin(); };
+$('v-inside').onclick = () => { leaveRootsOnly(); goInside(); };
 $('v-split').onclick = () => toggleSplit();
 function toggleSplit() { state.split = !state.split; layout(); if (!rig.animating) rig.apply(); }
 $('roots-home').onclick = () => { pane.resetView(); dirty = true; };
