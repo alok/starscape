@@ -142,6 +142,7 @@ body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels {
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
 #labels span { position: absolute; transform: translate(-50%, -50%); font: italic 15px/1 var(--serif); color: rgba(220, 230, 250, 0.72); text-shadow: 0 0 6px #000; white-space: nowrap; }
 #labels span.big { font-size: 17px; color: rgba(255, 236, 200, 0.85); }
+#labels span.axis { font-size: 16px; color: rgba(190, 205, 235, 0.62); }
 
 #fatal, .fatal { position: fixed; inset: auto 16px 50% 16px; text-align: center; font: 18px/1.5 var(--serif); z-index: 50; }
 

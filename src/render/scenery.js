@@ -49,6 +49,25 @@ export function makeCone(height = 7) {
   return group;
 }
 
+/**
+ * The coefficient axes through the origin, for orientation from outside: a, b and c are oblique in the display
+ * basis (X, Y, Z) = (−b, a + c, c − a), so a ↦ (0, 1, −1), b ↦ (−1, 0, 0), c ↦ (0, 1, 1). Each runs from −n to n
+ * in its coefficient; `ends` are the positive tips, where the labels go.
+ */
+export function makeAxes(n = 4) {
+  const dirs = { a: [0, 1, -1], b: [-1, 0, 0], c: [0, 1, 1] }, pts = [], ends = {};
+  for (const [k, d] of Object.entries(dirs)) {
+    pts.push(...d.map(x => -n * x), ...d.map(x => n * x));
+    ends[k] = new THREE.Vector3(...d.map(x => (n + 0.6) * x));
+  }
+  const lines = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)),
+    lineMaterial(0xb8c8e8, 0.22));
+  const group = new THREE.Group();
+  group.add(lines);
+  group.userData = { lines, ends };
+  return group;
+}
+
 /** The screen disk a + c = h where radial projection lands: the Klein model. */
 export function makeScreen(h = 4) {
   const group = new THREE.Group();

@@ -7,7 +7,7 @@ import * as Mo from './math/models.js';
 import * as Pl from './math/planes.js';
 import { walk } from './math/flatland.js';
 import { StarField } from './render/stars.js';
-import { makeCone, makeScreen, makeSelection, makePlane, setPlane, makeShell } from './render/scenery.js';
+import { makeCone, makeScreen, makeSelection, makePlane, setPlane, makeShell, makeAxes } from './render/scenery.js';
 import { makeFloor, setFloorG } from './render/flatland.js';
 import { PALETTES, gradientCSS } from './render/palette.js';
 import { Rig } from './views/rig.js';
@@ -78,8 +78,8 @@ const stars = new StarField(LATTICE, { palette: state.palette });
 stars.uniforms.uH.value = H; stars.uniforms.uHP.value = HP;
 stars.setRho(G.displayPushforward(state.g));
 const cone = makeCone(8), screenDisk = makeScreen(H), selection = makeSelection();
-const planeView = makePlane(), shell = makeShell(), floor = makeFloor(H);
-world.add(stars.points, cone, screenDisk, planeView, shell, floor, selection);
+const planeView = makePlane(), shell = makeShell(), floor = makeFloor(H), axes = makeAxes(4);
+world.add(stars.points, cone, screenDisk, planeView, shell, floor, selection, axes);
 const pane = new RootsPane({ world, stars, state, H, HP, onModel: markDirty });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -174,6 +174,10 @@ function syncUniforms() {
   screenDisk.userData.fill.material.opacity = 0.32 * tw.get('screen');
   screenDisk.userData.ring.visible = m < 2.6;
   setFloorG(floor, state.g, tw.get('floor'));
+  // The a, b, c axes orient the lattice from outside; once the stars become a picture they would only clutter it.
+  const axesOn = rig.mode === 'outside' && state.show.cone ? Math.max(0, 1 - 2 * m) : 0;
+  axes.visible = axesOn > 0.01;
+  axes.userData.lines.material.opacity = 0.22 * axesOn;
 }
 
 const sameCoef = (p, q) => !!p && !!q && p.every((x, i) => x === q[i]);
@@ -219,8 +223,17 @@ const labelEls = LABELS.map(([, text, big]) => {
   const s = document.createElement('span'); s.textContent = text; if (big) s.className = 'big';
   $('labels').append(s); return s;
 });
+const axisEls = Object.keys(axes.userData.ends).map(k => {
+  const s = document.createElement('span'); s.textContent = k; s.className = 'axis'; $('labels').append(s); return s;
+});
 function updateLabels() {
   const m = tw.get('morph'), w = view3d.w, h = view3d.h;
+  Object.values(axes.userData.ends).forEach((end, i) => {
+    const q = world.localToWorld(end.clone()).project(camera), el = axisEls[i];
+    const show = axes.visible && w > 0 && Math.abs(q.z) <= 1 && Math.abs(q.x) <= 1 && Math.abs(q.y) <= 1;
+    el.style.display = show ? '' : 'none';
+    if (show) { el.style.left = `${((q.x + 1) / 2) * w}px`; el.style.top = `${((1 - q.y) / 2) * h}px`; el.style.opacity = axes.userData.lines.material.opacity / 0.22; }
+  });
   const vis = tw.get('screen') > 0.3 || m > 0.5 || (rig.mode === 'origin' && tw.get('cone') > 0.3);
   LABELS.forEach(([t], i) => {
     const el = labelEls[i], t2 = G.actReal(state.g, t), [bu, bv] = Mo.boundaryPoint(t2);
