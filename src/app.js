@@ -190,7 +190,10 @@ function updateSelectionMarker() {
     sprite.position.set(...st.position);
     const d = camera.position.distanceTo(world.localToWorld(sprite.position.clone()));
     const rpx = (st.radius * world.scale.y * camera.projectionMatrix.elements[5] * 0.5 * renderer.domElement.height) / Math.max(d, 1e-3);
-    sprite.scale.setScalar((Math.max(minPx, Math.min(34, 2.2 * rpx + 10)) / renderer.domElement.height) * 2 * dpr());
+    // A sizeAttenuation:false sprite still scales with the focal length P[1][1]; the wide fov from the origin would
+    // shrink the ring to a few grey pixels, so hold it at its size from outside (fov 42, P[1][1] ≈ 2.6).
+    const focal = Math.max(1, 2.6 / camera.projectionMatrix.elements[5]);
+    sprite.scale.setScalar((Math.max(minPx, Math.min(34, 2.2 * rpx + 10)) / renderer.domElement.height) * 2 * dpr() * focal);
     sprite.visible = true;
     return st;
   };
