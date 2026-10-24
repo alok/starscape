@@ -16,9 +16,22 @@ The tour follows Stange's seven chapters and adds a few things that only a spati
 - **Dragging the sky is a Lorentz boost.** ρ identifies PSL₂(ℝ) with SO⁺(2,1). Stars slide along their shells `Δ = const`, and releasing settles on SL₂(ℤ), where the lattice lands on itself.
 - **Live inside the plane.** The *Inside* view puts you at the center of the Poincaré disk, at your own position in H², and walking applies true hyperbolic translations. The ground carries the Farey tessellation, whose edges are exactly the planes of the forms with `Δ = 1`, because `(qx − p)(sx − r)` has discriminant `(ps − qr)²`. Walk straight and your left/right turns spell the continued fraction of where you are heading. Lower your eye to zero and you see what a Flatlander sees: one line, all the way around. This is exact, because the disk is conformal and centered on you.
 
+## Side by side
+
+On a wide screen the roots pane sits beside the lattice, as in Stange's viewer. It shows the same stars in the Klein model, the Poincaré disk or the upper half-plane, and the picture morphs so geodesics bend as the stars do. Drag either side and both move. A selection, a hover or a cut plane shows in both. Inside, the pane is a fixed map with you walking on it.
+
+## In a headset
+
+**Enter VR** puts your head at the origin, the lattice on a table, or the hyperbolic plane on your floor, depending on the vantage. The interface is visionOS-style glass in the world. Some gestures to try:
+
+- Pinch a star with each hand: the necklace through both appears.
+- Pinch and twist your wrist: the sky turns about the point you face.
+- Hold an open palm up: the glass comes to your hand.
+- Inside, walking in your room walks you through H².
+
 ## Points, color and brightness
 
-By default every point is drawn the same tiny size, because these are points of a lattice. Color shows `|Δ|` on Stange's fixed logarithmic range 3…240, and brightness shows a weight `(3/|Δ|)^β`. With `β = 1` this is exactly what you would see from the origin. Settings switch to disks sized by hyperbolic radius, as in her viewer.
+By default every point is drawn the same tiny size, because these are points of a lattice. **Color** is the invariant `|Δ|`, read as photon energy: violet for the simplest numbers, red as the discriminant grows, on Stange's fixed logarithmic range 3…240. The light cone is white. **Brightness** is the light you would receive standing at the origin, `(4/|v|²)^β`. Settings switch to disks sized by hyperbolic radius, as in her viewer, and offer other palettes. See [the guide](docs/GUIDE.md) for the derivations.
 
 ## Run it
 
