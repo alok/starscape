@@ -41,7 +41,8 @@ It is a static site with no build step. three.js r180 is vendored in `vendor/`.
 
 ```bash
 python3 scripts/serve.py 8848     # then open http://127.0.0.1:8848
-node --test test/                 # the mathematics: fixtures, invariants, Farey/Δ = 1, walking
+node --test test/                 # the mathematics: fixtures, invariants, Farey/Δ = 1, walking, float32
+node scripts/shoot.mjs "http://127.0.0.1:8848/#c=5" phone.png --size 390x844 --mobile   # true phone screenshot
 ```
 
 ## Layout
@@ -54,12 +55,15 @@ src/render/   stars (one GPU point cloud: ρ(g) and the picture morph run in the
 src/views/    rig: Outside, Origin and Inside vantage points
 src/ui/       chapters (the tour), xr (WebXR)
 lean/         the Lean 4 version: kernel-checked identities and an exact data bridge
+lean-float/   on FloatLib: the shader's float32 Δ and plane test are exact (where it matters, with a runtime guard)
+scripts/      no-cache dev server; headless screenshots at exact device sizes
 ```
 
 ## What is checked, and how
 
 - **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text; class numbers; ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
 - **Lean 4** (`lean/`): see its README for which statements are kernel-checked.
-- **Visual and device behavior** is checked by hand in desktop Chrome and a phone-sized viewport. WebXR has been exercised in an emulator, not yet on a physical headset.
+- **The GPU's arithmetic** (`lean-float/`, on FloatLib): the shader's float32 Δ is exact, and its plane test marks exactly the stars on the plane whenever the products stay below 2²⁴. The app checks that bound at runtime; `test/float32.test.js` replays the shader with `Math.fround`.
+- **Visual and device behavior** is checked in desktop Chrome and under phone emulation (390×844, touch). WebXR has been exercised in an emulator, not yet on a physical headset.
 
 MIT licensed. three.js is © its authors, MIT.

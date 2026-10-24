@@ -153,6 +153,7 @@ flowchart LR
   app((app.js<br/>wiring + frame loop))
   lean[[lean/ — Lean 4<br/>kernel-checked identities]]
   bridge[(data/lean-bridge.json)]
+  leanf[[lean-float/ — on FloatLib<br/>float32 Δ and plane test exact]]
 
   forms -- lattice arrays --> stars
   sl2 -- "ρ(g) as mat3 uniform" --> stars
@@ -167,6 +168,8 @@ flowchart LR
   rig -- "camera pose" --> app
   lean -- "lake exe starscape-bridge" --> bridge
   bridge -- "node --test" --> forms
+  leanf -- "N·M < 2²⁴ (gpuPlaneExact)" --> planes
+  planes -- "uPlane, only when exact" --> stars
 ```
 
 The rules that keep it reusable:
@@ -252,7 +255,28 @@ Gestures, chosen to feel obvious once tried:
 
 **Building on lean-starscape.** The live, Lean-backed service in `alok/lean-starscape` already proves several of these facts for its own `Point`/`Matrix`. Rather than fork it, PR [alok/lean-starscape#1](https://github.com/alok/lean-starscape/pull/1) adds `Polynomial/StarscapeProofs.lean` on top of its definitions: roots move by g in its general `det²` form, Farey edges are Δ = 1, edges map to edges, and the fixtures (which depend on no axioms at all). Its `apply` is exactly ρ, and its `incidence` is exactly B.
 
-**A natural next proof (FloatLib).** The shader computes Δ and plane membership in float32. On the drawn lattice every intermediate is an integer below 2²⁴, so those float computations are exact. FloatLib could prove that, which would connect the GPU picture to the exact integers.
+### 6.1 The GPU's float32 arithmetic, on FloatLib
+
+Everything above is exact integer mathematics. The picture, though, is drawn by a vertex shader whose only arithmetic is IEEE binary32, and it recomputes two integer quantities there: Δ (`b * b - 4.0 * a * c`, for the shell emphasis) and the plane test (`abs(-2.0*n.z*a + n.y*b - 2.0*n.x*c) < 0.5`, which marks a geodesic's stars). `lean-float/StarscapeFloat.lean` proves both are right, on [FloatLib](https://github.com/lean-dojo/FloatLib)'s binary32. FloatLib needs Mathlib, so this is a separate package; `lean/` stays dependency-free.
+
+**The model.** IEEE 754 defines `x ∘ y` as the exact result rounded once. FloatLib's `Model.roundAt binary32` is that rounding (nearest, ties to even), and FloatLib proves its executable binary32 implements it (`ExecFloat.Binary.toReal_add`, `toReal_mul`, …). So the file models each GLSL operation as `fl (x ∘ y)` with `fl := roundAt binary32`.
+
+**Integers below 2²⁴ are floats.** Binary32 has a 24-bit significand, so an integer `n` with `|n| < 2²⁴` is `n · 2⁰` with a mantissa that fits. In Flocq's language (which FloatLib ports) it is in the FLT format, hence in the generic format, and rounding preserves the generic format (`round_preserves_generic`). That is `fl_int`, four lines of proof.
+
+**Δ.** With coefficients of size at most 1024, `|b²| ≤ 2²⁰`, `|4ac| ≤ 2²²` and `|Δ| < 2²⁴`. Every intermediate is an integer below 2²⁴, so each rounding is the identity (`deltaF_eq_of_le`). Starscape draws coefficients up to 95.
+
+**The plane test is subtler.** Write `P = −2n_c·a`, `T = n_b·b`, `Q = 2n_a·c` and `V = P + T − Q = B(n, f)`. Assume only that each product is below 2²⁴. Then `P`, `T`, `Q` are exact, but `P + T` can reach 2²⁵ and round. Two cases:
+
+1. `|P + T| < 2²⁴`. The sum is exact, and the final value is `fl(V)`. If `V = 0` it is 0. If not, `|V| ≥ 1` (it is an integer), and rounding is monotone with `fl(±1) = ±1`, so `|fl(V)| ≥ 1`.
+2. `|P + T| ≥ 2²⁴`. Then `V ≠ 0`, because `|Q| < 2²⁴`. Monotonicity and `fl(2²⁴) = 2²⁴` give `|fl(P + T)| ≥ 2²⁴`, so `|fl(P+T) − Q| ≥ 1`, and the last rounding keeps it at least 1.
+
+Either way `|result| < ½ ⟺ V = 0`. That is `planeF_decides`. The decision is exact even where the arithmetic is not.
+
+**The hypothesis becomes a runtime check.** `planeF_decides_of_le` restates the condition as `N·M < 2²⁴`, where `N` bounds `|2n_c|, |n_b|, |2n_a|` and `M` bounds the drawn coefficients. For a plane through two drawn stars, `N ≤ 4·2·95² = 72 200`, and `72 200 · 95 ≈ 6.9M < 2²⁴ ≈ 16.8M`, so it always holds. But "absorb" relabels the plane by γ, and the normal can grow without limit. `gpuPlaneExact` (`src/math/planes.js`) checks the bound whenever a plane is set. Past it, the app still draws the chord (computed exactly on the CPU) but leaves the stars unmarked and says why. The guard is needed: `test/float32.test.js` keeps a plane with normal (5840707, −33016826, −17578201) that passes through the star (37, 21, 52), where float32 evaluates the test to −64.
+
+**An executable mirror.** The same test file replays the shader with `Math.fround`, operation by operation, over all ~470,000 drawn points. Computing in double and rounding to float is the correctly rounded binary32 result, because 53 ≥ 2·24 + 2 makes double rounding harmless for `+ − ×`. The proof covers every lattice and every plane under the bound. The test covers this lattice and is a cheap regression check.
+
+**What it is not.** WebGL's GLSL ES 3.00 asks only that `highp` stay within 1 ULP, so the theorem is about IEEE-conformant hardware, which current GPUs are for these operations. A compiler may fuse a multiply-add into one rounding; every step here is exact anyway.
 
 ---
 
@@ -277,6 +301,10 @@ Gestures, chosen to feel obvious once tried:
 - **ES module caching.** Changing `?v=` on the page does not refetch imported modules. A dev server must send `Cache-Control: no-store` (`scripts/serve.py`). If a browser cached modules from an earlier server, switch ports.
 - **Hidden pages don't animate.** A background tab or pane throttles `requestAnimationFrame` and timers. Don't trust timing or animation in a hidden page, and don't await rAF in test scripts there.
 - **Name shadowing in one function.** `const Y` for CIE luminance-Y and `const Y` for relative luminance in the same scope is a syntax error at import. `node --check` every module.
+- **Headless Chrome's minimum window.** `--window-size=390,844` gives a ~500px layout cropped to 390px. Emulate the device over CDP instead (`Emulation.setDeviceMetricsOverride`; see `scripts/shoot.mjs`).
+- **A dev server's listen backlog.** Python's `ThreadingHTTPServer` queues 5 connections. A module graph opens ~20 at once, the kernel drops some, and the page stalls for seconds on SYN retries. `scripts/serve.py` raises it to 128.
+- **Projecting through stale matrices.** `vector.project(camera)` uses `camera.matrixWorldInverse`, which `render()` refreshes. HTML labels placed before the render, after a camera cut with nothing moving afterward, stay where the previous view put them. Call `updateMatrixWorld()` before projecting.
+- **One view's exposure leaking into another.** The roots pane used to scale the 3D view's exposure. When portrait aspect began to dim the 3D view, the pane went black in roots-only mode, where the 3D view has zero width. Each view now owns its exposure.
 - **Throwing `decide` at big things.** Kernel `decide` is great for fixtures but slow for counting tens of thousands of points. Those are `#guard` tests, labeled as such.
 
 ---
@@ -284,7 +312,8 @@ Gestures, chosen to feel obvious once tried:
 ## 9. What is verified, and how
 
 - **Kernel-checked (Lean):** the identities in §6's table.
-- **Unit tests (`node --test`, 19):** fixtures, invariants, models, planes, snap, interpolation, Farey ⇔ Δ = 1 in a box, walking distances, L/R toward φ, and agreement with the Lean bridge.
-- **Checked by eye in a browser:** every chapter on desktop and in a phone-sized viewport, side-by-side panes, Inside with the map and the retina.
+- **Proved on FloatLib (Lean + Mathlib):** float32 Δ is exact for coefficients ≤ 1024, and the float32 plane test decides membership under `N·M < 2²⁴` (§6.1). Checked against FloatLib v2.0.0 as built in `~/softmax-float`. The package's own `lake build` was not run end to end.
+- **Unit tests (`node --test`, 24):** fixtures, invariants, models, planes, snap, interpolation, Farey ⇔ Δ = 1 in a box, walking distances, L/R toward φ, agreement with the Lean bridge, and the float32 replay of the shader.
+- **Checked by eye in a browser:** every chapter on desktop (1440×900) and under true phone emulation (390×844, touch, via `scripts/shoot.mjs`), side-by-side and roots-only panes, Inside with the map and the retina.
 - **WebXR in the Immersive Web Emulator:** stereo session, glass window, ornament and inspector card, Inside floor placement.
 - **Not yet verified:** physical Quest or Vision Pro, hand-tracking gestures (they need a real headset), and performance on low-end phones.
