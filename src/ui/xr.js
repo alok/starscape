@@ -32,6 +32,9 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
   const saved = { position: new THREE.Vector3(), scale: 1 };
   const head = new THREE.Vector3(), headQ = new THREE.Quaternion();
   const center = new THREE.Vector3(0, 0, 0);     // inside: where in the room the center of the disk sits
+  // Your eyes and heading when the glass was last placed (at the start, or on recenter): the Origin puts the zero
+  // polynomial there and the tabletop model ahead of it, so nothing moves unless you ask.
+  const anchor = new THREE.Vector3(0, 1.55, 0), ahead = new THREE.Vector3(0, 0, -1);
 
   // ---- placement -----------------------------------------------------------------------------------------------
   function place(dt = 0) {
@@ -39,10 +42,10 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     world.rotation.set(0, 0, 0);
     if (vantage === 'origin') {
       world.scale.setScalar(ORIGIN_SCALE);
-      world.position.set(0, 1.55, 0);
+      world.position.copy(anchor);                               // the zero polynomial at your eyes, seated or standing
     } else if (vantage === 'outside') {
       world.scale.setScalar(TABLE_SCALE);
-      world.position.set(0, mode === 'immersive-ar' ? 0.95 : 1.0, -0.9);
+      world.position.copy(anchor).addScaledVector(ahead, 1.1);   // at eye height, above the glass (drawn over all)
     } else {
       world.scale.set(-FLOOR_SCALE, FLOOR_SCALE, FLOOR_SCALE);   // mirrored: see setWorldFrame in app.js
       // The plane Y = h in display units lies on the floor; lifting it raises it toward the eyes.
@@ -163,12 +166,18 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
   function renderAll() { ui.window.render(); ui.ornament.render(); ui.card.render(); }
   const panels = () => [ui.window, ui.ornament, ui.card];
 
-  /** Put the UI in front of the user, below their gaze, facing them. */
+  /**
+   * Put the UI in front of the user, below their gaze and tilted back to face their eyes, with its top edge about
+   * 12° under the horizon so the tabletop model at eye height stays clear of it. Re-anchors the lattice too.
+   */
   function placeUI() {
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(headQ); fwd.y = 0; fwd.normalize();
-    const pos = head.clone().addScaledVector(fwd, 0.85); pos.y = head.y - 0.28;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(headQ); fwd.y = 0;
+    if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+    fwd.normalize();
+    const pos = head.clone().addScaledVector(fwd, 0.75); pos.y = head.y - 0.40;
     ui.group.position.copy(pos);
-    ui.group.lookAt(head.x, pos.y, head.z);
+    ui.group.lookAt(head);
+    anchor.copy(head); ahead.copy(fwd);
     uiPlaced = true;
   }
 
@@ -206,10 +215,11 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
       const open = thumb.getWorldPosition(pa).distanceTo(index.getWorldPosition(pb)) > 0.05;
       s.since = up && open ? s.since + dt : 0;
       if (s.since > 0.6 && !s.cooldown) {
-        // Bring the glass to the hand: just above it, facing you.
-        const p = wrist.getWorldPosition(new THREE.Vector3());
-        ui.group.position.set(p.x, p.y + 0.22, p.z);
-        ui.group.lookAt(head.x, ui.group.position.y, head.z);
+        // Bring the glass toward the hand, but at reading distance (closer than ~0.75 m strains the eyes).
+        const dir = wrist.getWorldPosition(new THREE.Vector3()).sub(head).setY(0);
+        if (dir.lengthSq() < 1e-4) dir.set(0, 0, -1).applyQuaternion(headQ).setY(0);
+        ui.group.position.copy(head).addScaledVector(dir.normalize(), 0.75); ui.group.position.y = head.y - 0.40;
+        ui.group.lookAt(head);
         ui.group.visible = true; uiPlaced = true; s.cooldown = 2; s.since = 0;
       }
     }
@@ -311,7 +321,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
       if (h?.grab) {
         const { o, d } = worldRay(c);
         ui.group.position.copy(o.addScaledVector(d, h.distance)).add(h.offset);
-        ui.group.lookAt(head.x, ui.group.position.y, head.z);
+        ui.group.lookAt(head);
       } else if (h && !h.ui && !h.paired) {
         // Turn the dial: wrist roll about the pointing ray, before any sweep, rotates the sky about i.
         const { d } = worldRay(c), up = upOf(c);
