@@ -2,7 +2,7 @@
 
 **The integer quadratics as a night sky.** Every polynomial `ax² + bx + c` with integer coefficients is a point of ℤ³. Stand at the origin, the zero polynomial, and look up: your sky is the hyperbolic plane, and its stars are the algebraic numbers of degree two.
 
-**[Open Starscape](https://alok.github.io/starscape/)**. It runs in any modern browser. On a headset it offers **Enter VR**.
+**[Open Starscape](https://alok.blog/starscape/)**. It runs in any modern browser. On a headset it offers **Enter VR**.
 
 This is an independent implementation inspired by **Katherine E. Stange**’s [Starscape / Lattice viewer](https://www.katestange.net/starscape-lattice/) and her talk [Illustrating Mathematics](https://katestange.net/talks/math-exploration/). The mathematics is from **Edmund Harriss, Katherine E. Stange and Steve Trettel**, [*Algebraic Number Starscapes*](https://arxiv.org/abs/2008.07655) (§4.2). The L/R coding of geodesics is due to **Caroline Series**, [*The Modular Surface and Continued Fractions*](https://doi.org/10.1112/jlms/s2-31.1.69) (1985). No code or media from the original viewer is included.
 

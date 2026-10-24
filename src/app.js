@@ -563,6 +563,7 @@ function leanTo(v) {
   rig.go('origin', { lean: new THREE.Vector3(...v) }, 0.9);
 }
 function setMorph(m, seconds = 1.1) {
+  state.morphTarget = m;
   tween('morph', m, seconds);
   if (m >= 0.5) tween('screen', 1, 0.6);
   $('morph').value = String(m);
@@ -714,7 +715,13 @@ $('h-clear').onclick = () => { cutting.reset(); lastInside = ''; dirty = true; }
 $('v-inside').onclick = () => goInside();
 eyeLabel();
 
-const api = { leanTo, goOrigin, goOutside, goInside, setMorph, applyIntegral, stepShell, select, setEye: h => { rig.setEye(h); $('eye').value = String(h); eyeLabel(); dirty = true; }, get state() { return state; } };
+const api = {
+  leanTo, goOrigin, goOutside, goInside, setMorph, applyIntegral, stepShell, select, renderChapter, rig,
+  setEye: h => { rig.setEye(h); $('eye').value = String(h); eyeLabel(); dirty = true; },
+  chapter: () => ({ ...CHAPTERS[state.chapter], index: state.chapter, count: CHAPTERS.length }),
+  restoreFrame: () => { setWorldFrame(rig.mode === 'inside'); dirty = true; },
+  get state() { return state; },
+};
 
 // ---------------------------------------------------------------------------------------------------------------
 // Dock, settings and keys
