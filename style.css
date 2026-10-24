@@ -120,6 +120,20 @@ button.xr { background: rgba(255, 213, 138, 0.14); border-color: rgba(255, 213, 
 #retina { position: fixed; left: 0; right: 0; top: 42%; height: 72px; width: 100vw; z-index: 3; image-rendering: pixelated; border-top: 1px solid rgba(160,190,240,0.25); border-bottom: 1px solid rgba(160,190,240,0.25); background: #02030a; }
 #retina-caption { position: fixed; left: 50%; top: calc(42% + 80px); transform: translateX(-50%); width: min(560px, 90vw); text-align: center; font: italic 15px/1.4 var(--serif); color: var(--ink-2); z-index: 3; margin: 0; }
 
+/* The roots pane, side by side with the lattice */
+#roots-overlay { position: fixed; pointer-events: none; z-index: 2; display: none; }
+body.split #roots-overlay { display: block; }
+body.split::after { content: ''; position: fixed; top: 0; bottom: 0; right: var(--pane-w); width: 1px; background: rgba(160, 185, 230, 0.16); z-index: 2; pointer-events: none; }
+#roots-head { position: fixed; top: max(14px, env(safe-area-inset-top)); right: calc(var(--pane-w) / 2); transform: translateX(50%); display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; z-index: 6; border-radius: 999px; }
+#roots-head .t { font: italic 16px var(--serif); color: var(--ink-2); }
+#roots-head .seg button, #roots-head > button { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
+body.split #dock { right: calc(var(--pane-w) + var(--gutter)); max-width: calc(100vw - var(--pane-w) - 2 * var(--gutter) - 220px); top: max(14px, env(safe-area-inset-top)); bottom: auto; }
+body.split #inspector { top: 120px; }
+body.split #inspector { right: calc(var(--pane-w) + var(--gutter)); }
+body.split #inside-hud { max-width: calc(100vw - var(--pane-w) - 2 * var(--gutter)); }
+body.split .sheet { right: calc(var(--pane-w) + var(--gutter)); }
+body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels { display: none; }
+
 /* Labels on the boundary of the sky */
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 4; }
 #labels span { position: absolute; transform: translate(-50%, -50%); font: italic 15px/1 var(--serif); color: rgba(220, 230, 250, 0.72); text-shadow: 0 0 6px #000; white-space: nowrap; }
@@ -143,6 +157,8 @@ button.xr { background: rgba(255, 213, 138, 0.14); border-color: rgba(255, 213, 
   #dock .seg button { padding: 5px 9px; font-size: 13.5px; }
   .morph { display: none; }
   #dock-toggle { display: inline-grid; }
+  #roots-head { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); right: 50%; }
+  body.roots-only #roots-head { bottom: auto; top: 56px; }
   .more { display: none; }
   #dock.open { flex-wrap: wrap; max-width: calc(100vw - 20px); left: 10px; }
   #dock.open .more { display: contents; }

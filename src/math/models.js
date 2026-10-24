@@ -53,6 +53,20 @@ export function rayToRoot(o, d, morph, h, hp) {
   return t > 0 ? screenToRoot(o.x + t * d.x, o.z + t * d.z, morph, h, hp) : null;
 }
 
+/**
+ * Where a Klein point (ku, kv) is drawn on the screen Y = h for a picture `morph` in [1, 3] (Klein → Poincaré →
+ * half-plane), as [x, z]. The stars' shader interpolates these same positions, so curves drawn through this map
+ * bend exactly as the stars do. A boundary point of the half-plane is returned on the real line.
+ */
+export function pictureOf(ku, kv, morph, h, hp) {
+  const s = Math.sqrt(Math.max(0, 1 - ku * ku - kv * kv));
+  const K = [ku * h, kv * h], P = [(ku / (1 + s)) * h, (kv / (1 + s)) * h];
+  const den = Math.max(1 - kv, 1e-9), Hp = [(ku / den) * hp, (s / den - 1) * hp];
+  const m = Math.min(3, Math.max(1, morph));
+  const [A, B, f] = m <= 2 ? [K, P, m - 1] : [P, Hp, m - 2];
+  return [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f];
+}
+
 /** A unit-scale display direction (on Y = 1) for a root z. */
 export function rootToDisplay(z) {
   const [u, v] = halfPlaneToKlein(z);

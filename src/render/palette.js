@@ -31,12 +31,43 @@ const ramp = stops => t => {
   return fromOklab(labs[i].map((v, j) => v * (1 - f) + labs[i + 1][j] * f));
 };
 
+// The visible spectrum, from the CIE 1931 colour-matching functions (Wyman, Sloan and Shirley's analytic fit),
+// pushed into sRGB by adding just enough white and normalized to full value: hue only, since brightness is
+// carried separately by the weight.
+const lobe = (l, mu, s1, s2) => Math.exp(-0.5 * ((l - mu) / (l < mu ? s1 : s2)) ** 2);
+export function wavelengthRGB(nm) {
+  const X = 1.056 * lobe(nm, 599.8, 37.9, 31.0) + 0.362 * lobe(nm, 442.0, 16.0, 26.7) - 0.065 * lobe(nm, 501.1, 20.4, 26.2);
+  const Y = 0.821 * lobe(nm, 568.8, 46.9, 40.5) + 0.286 * lobe(nm, 530.9, 16.3, 31.1);
+  const Z = 1.217 * lobe(nm, 437.0, 11.8, 36.0) + 0.681 * lobe(nm, 459.0, 26.0, 13.8);
+  let rgb = [3.2406 * X - 1.5372 * Y - 0.4986 * Z, -0.9689 * X + 1.8758 * Y + 0.0415 * Z, 0.0557 * X - 0.204 * Y + 1.057 * Z];
+  const lift = Math.max(0, -Math.min(...rgb));
+  rgb = rgb.map(c => c + lift);
+  const top = Math.max(...rgb, 1e-9);
+  rgb = rgb.map(c => c / top);
+  // Equal luminance, so violet does not read as dim: darker hues are lifted toward white, lighter ones scaled down.
+  const lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2], target = 0.42;
+  rgb = lum < target ? rgb.map(c => c + ((target - lum) / (1 - lum)) * (1 - c)) : rgb.map(c => (c * target) / lum);
+  return rgb.map(c => clamp01(toGamma(c)));
+}
+/** A star's weight read as photon energy: t = 0 (the simplest numbers, most energy) is violet, t = 1 is red. */
+export const SPECTRUM_NM = [400, 690];
+const spectrum = t => {
+  const [v, r] = SPECTRUM_NM, inv = 1 / r + (1 / v - 1 / r) * (1 - clamp01(t));
+  return wavelengthRGB(1 / inv);
+};
+
 /**
  * Each palette: a ramp for upper-interior stars (t = 0 is the smallest |Δ|) and flat colors for the other kinds.
  * 'starlight' runs like stellar temperature, hot blue-white for the simplest numbers to ember for the most
  * complex, so color and brightness tell the same story. 'stange' interpolates her six anchors in OKLab.
  */
 export const PALETTES = {
+  spectrum: {
+    label: 'Spectrum (weight as energy)',
+    ramp: spectrum,
+    // The light cone (double roots) is white light; real-root dust is a cool gray.
+    exterior: '#6b7894', null: '#f4f5ff', lower: '#77708a',
+  },
   starlight: {
     label: 'Starlight',
     ramp: ramp(['#e9f1ff', '#bcd4ff', '#fff4e0', '#ffd08a', '#ff9f5a', '#e2604f', '#a8466e']),
@@ -57,7 +88,7 @@ export const PALETTES = {
 export const deltaPosition = d => clamp01(Math.log(Math.abs(d) / DELTA_RANGE[0]) / Math.log(DELTA_RANGE[1] / DELTA_RANGE[0]));
 
 export function paletteTexture(name) {
-  const p = PALETTES[name] ?? PALETTES.starlight, n = 256, data = new Uint8Array(n * 4);
+  const p = PALETTES[name] ?? PALETTES.spectrum, n = 256, data = new Uint8Array(n * 4);
   for (let i = 0; i < n; i++) {
     const c = p.ramp(i / (n - 1));
     data.set([...c.map(x => Math.round(x * 255)), 255], 4 * i);
@@ -69,11 +100,11 @@ export function paletteTexture(name) {
   return tex;
 }
 export const kindColors = name => {
-  const p = PALETTES[name] ?? PALETTES.starlight;
+  const p = PALETTES[name] ?? PALETTES.spectrum;
   return ['ramp', p.lower, p.exterior, p.null].map(h => (h === 'ramp' ? new THREE.Color(1, 1, 1) : new THREE.Color(h)));
 };
 export function gradientCSS(name) {
-  const p = PALETTES[name] ?? PALETTES.starlight;
+  const p = PALETTES[name] ?? PALETTES.spectrum;
   const stops = Array.from({ length: 13 }, (_, i) => `rgb(${p.ramp(i / 12).map(x => Math.round(x * 255)).join(' ')}) ${(i * 100) / 12}%`);
   return `linear-gradient(90deg, ${stops.join(',')})`;
 }

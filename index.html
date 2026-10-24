@@ -19,6 +19,13 @@
 <body>
   <canvas id="scene" aria-label="The lattice of integer quadratics as a three-dimensional star field"></canvas>
   <div id="labels" aria-hidden="true"></div>
+  <canvas id="roots-overlay" aria-hidden="true"></canvas>
+  <div id="roots-head" class="glass" hidden>
+    <span class="t">roots</span>
+    <div class="seg" id="roots-models" role="group" aria-label="Picture of the hyperbolic plane"><button data-model="1">Klein</button><button data-model="2">Poincaré</button><button data-model="3">Half-plane</button></div>
+    <button id="roots-farey" aria-pressed="false" title="Draw the Farey tessellation">Farey</button>
+    <button class="icon" id="roots-home" title="Recenter the picture" aria-label="Recenter the picture">⌂</button>
+  </div>
   <div id="veil" aria-hidden="true"></div>
 
   <header id="brand">
@@ -61,6 +68,7 @@
       <button id="v-origin" aria-pressed="false" title="Stand at the zero polynomial (O toggles)">Origin</button>
       <button id="v-inside" aria-pressed="false" title="Live inside the hyperbolic plane (I)">Inside</button>
     </div>
+    <button id="v-split" aria-pressed="false" title="Show the roots side by side with the lattice (R)">Roots</button>
     <label class="morph" title="Slide every star along its ray onto the screen, then change model (P)">
       <span class="morph-labels"><span>lattice</span><span>Klein</span><span>Poincaré</span><span>half-plane</span></span>
       <input type="range" id="morph" min="0" max="3" step="0.001" value="0" aria-label="Picture: lattice, Klein, Poincaré or half-plane">
@@ -108,7 +116,7 @@
       <option value="1" selected>points: brightness = weight</option>
       <option value="0">disks: size = hyperbolic radius</option>
     </select></label>
-    <label title="Brightness ∝ (3/|Δ|)^β. β = 1 is what you see from the origin: k·f is k times farther and k² times the discriminant.">Weight exponent β <input type="range" id="s-beta" min="0.2" max="1.6" step="0.01" value="0.7"> <span id="s-beta-v">0.70</span></label>
+    <label title="Brightness ∝ (4/|v|²)^β: the light you would receive at the origin from a point at v (after the current symmetry). β = 1 is the inverse-square law; k·f is k² times dimmer.">Brightness exponent β <input type="range" id="s-beta" min="0.2" max="1.6" step="0.01" value="0.55"> <span id="s-beta-v">0.55</span></label>
     <label>Colors <select id="s-palette"></select></label>
     <div id="s-legend"><div id="s-bar"></div><div class="ticks"><span>|Δ| = 3</span><span>240</span></div>
       <div class="keys"><span><i class="k-ext"></i>two real roots</span><span><i class="k-null"></i>double root</span><span><i class="k-low"></i>lower cone</span></div></div>

@@ -88,7 +88,9 @@ void main() {
 
   vec4 mv = modelViewMatrix * vec4(P, 1.0);
   gl_Position = projectionMatrix * mv;
-  float depth = max(-mv.z, 1e-4);
+  // Perspective divides by depth; an orthographic camera (the 2D roots pane) does not.
+  bool ortho = projectionMatrix[3][3] > 0.5;
+  float depth = ortho ? 1.0 : max(-mv.z, 1e-4);
   float px = r * uUnit * projectionMatrix[1][1] * 0.5 * uViewportH / depth;
   if (emph > 1.0) px *= 1.25;
   float dim = 1.0, drawn = px;
@@ -100,11 +102,11 @@ void main() {
   vHalo = smoothstep(1.6, 4.5, drawn / uMinPx);
   vPoint = uStyle;
   if (uStyle > 0.5) {
-    // Points: geometry stays exact (no size), and the weight (3/|Δ|)^β becomes brightness.
-    // For the double-root forms k(qx − p)², a = kq² plays the role of |Δ| (Ford circles have radius 1/2a).
-    float weight = kind == 3 ? 1.0 / max(abs(aT), 1.0) : 3.0 / max(abs(delta), 1.0);
+    // Points: geometry stays exact (no size). Brightness is the light you would receive at the origin from a
+    // point at v: (4/|v|²)^β, with v after ρ(g), so (1, 0, 1) has weight 1 and k·f is k² times dimmer. It changes
+    // as you drag, as the sizes do in Stange's viewer. Color carries the invariant |Δ|.
+    float weight = 4.0 / max(dot(v, v), 1.0);
     dim = min(1.6, pow(weight, uBeta));
-    if (kind == 3) dim = min(1.6, pow(1.0 / max(abs(a), 1.0), uBeta));
     // The core stays one tiny size for every point. Heavy points get a faint point-spread halo, as bright
     // stars do in a photograph, so brightness reads at a glance without changing the point itself.
     float spread = smoothstep(0.12, 1.0, dim * uExposure);
@@ -143,7 +145,7 @@ export const KIND = { upper: 0, lower: 1, exterior: 2, null: 3 };
 
 export class StarField {
   /** @param {{count:number, coefficients:Int32Array, kinds:Uint8Array, primitive:Uint8Array}} lattice */
-  constructor(lattice, { palette = 'starlight' } = {}) {
+  constructor(lattice, { palette = 'spectrum' } = {}) {
     this.lattice = lattice;
     const n = lattice.count, coef = new Float32Array(3 * n), meta = new Float32Array(2 * n);
     for (let i = 0; i < n; i++) {
@@ -165,7 +167,7 @@ export class StarField {
       uMorph: { value: 0 }, uH: { value: 4 }, uHP: { value: 2 }, uR0: { value: 0.12 },
       uUnit: { value: 1 }, uViewportH: { value: 800 },
       uMinPx: { value: 1.1 }, uKnee: { value: 3 }, uMaxPx: { value: 11 }, uExposure: { value: 1 }, uHaloPx: { value: 3 }, uFalloff: { value: 2.4 },
-      uStyle: { value: 1 }, uPointPx: { value: 2.5 }, uBeta: { value: 0.7 },
+      uStyle: { value: 1 }, uPointPx: { value: 2.5 }, uBeta: { value: 0.55 },
       uKindAlpha: { value: new THREE.Vector4(1, 0.55, 0.45, 0.9) },
       uDepth: { value: 0 }, uBall: { value: 6 }, uMultiples: { value: 1 },
       uPlane: { value: new THREE.Vector3() }, uPlaneOn: { value: 0 },
@@ -199,8 +201,8 @@ export class StarField {
   }
 
   /** CPU mirror of the shader's position and radius for one triple (display units). Keep in sync. */
-  stage(a, b, c, rho = this.rho ?? [1, 0, 0, 0, 1, 0, 0, 0, 1]) {
-    const u = this.uniforms, m = Math.min(3, Math.max(0, u.uMorph.value)), H = u.uH.value, HP = u.uHP.value, R0 = u.uR0.value;
+  stage(a, b, c, rho = this.rho ?? [1, 0, 0, 0, 1, 0, 0, 0, 1], morph = this.uniforms.uMorph.value) {
+    const u = this.uniforms, m = Math.min(3, Math.max(0, morph)), H = u.uH.value, HP = u.uHP.value, R0 = u.uR0.value;
     const X0 = -b, Y0 = a + c, Z0 = c - a;
     const X = rho[0] * X0 + rho[1] * Y0 + rho[2] * Z0, Y = rho[3] * X0 + rho[4] * Y0 + rho[5] * Z0, Z = rho[6] * X0 + rho[7] * Y0 + rho[8] * Z0;
     const delta = b * b - 4 * a * c, kind = delta === 0 ? 3 : delta > 0 ? 2 : a > 0 ? 0 : 1;

@@ -18,7 +18,7 @@ export const CHAPTERS = [
     eyebrow: 'II · the stars',
     title: 'Inside the cone',
     body: `<p>Keep the polynomials with complex roots and ${m('a > 0')}: the inside of the upper cone, out to depth ${m('a + c')}. These are the <em>stars</em>. Each has one root in the upper half-plane.</p>
-<p>Color is ${m('|Δ|')}: blue-white for the simplest numbers (${m('Δ = −3')} is ${m('x² + x + 1')}, ${m('Δ = −4')} is ${m('x² + 1')}), cooling to ember as the discriminant grows.</p>`,
+<p>Color is the invariant ${m('|Δ|')} read as a spectrum: violet for the simplest numbers (${m('Δ = −3')} is ${m('x² + x + 1')}, ${m('Δ = −4')} is ${m('x² + 1')}), running to red as the discriminant grows. Brightness is the light you would receive standing at the origin. The roots pane on the right is the same sky, flattened: drag either one.</p>`,
     scene: { view: 'outside', pose: { radius: 30, theta: 0.6, phi: 1.2, target: [0, 9, 0] }, morph: 0, depth: 'deep', ball: 6,
       alpha: { upper: 1, lower: 0.12, exterior: 0.1, null: 0.4 }, cone: true, screen: false },
   },

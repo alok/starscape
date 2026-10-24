@@ -16,6 +16,7 @@ import { Tweens } from './core/tweens.js';
 import { CHAPTERS } from './ui/chapters.js';
 import { Inspector, button } from './ui/inspector.js';
 import { InsideHud } from './ui/inside.js';
+import { RootsPane } from './ui/rootspane.js';
 import { matrixText, tupleText, complexText } from './ui/format.js';
 import { setupXR } from './ui/xr.js';
 
@@ -48,7 +49,7 @@ scene.add(world, camera);
 const state = {
   g: [...G.identity],
   snap: true,
-  palette: 'starlight',
+  palette: 'spectrum',
   selected: null,           // [a, b, c], an exact base identity
   hovered: -1,
   plane: null,              // { normal: [A, B, C], endpoints }
@@ -57,6 +58,7 @@ const state = {
   morphTarget: 0,
   starDepth: isMobile ? 40 : 57,
   exposure: 1.5, size: 1, style: 1,
+  split: window.innerWidth >= 1000,     // the roots pane, side by side
   show: { cone: true, dust: true, lower: true, multiples: true },
 };
 $('s-depth').value = String(state.starDepth);
@@ -74,14 +76,30 @@ stars.setRho(G.displayPushforward(state.g));
 const cone = makeCone(8), screenDisk = makeScreen(H), selection = makeSelection();
 const planeView = makePlane(), shell = makeShell(), floor = makeFloor(H);
 world.add(stars.points, cone, screenDisk, planeView, shell, floor, selection);
+const pane = new RootsPane({ world, stars, state, H, HP, onModel: markDirty });
 
 // ---------------------------------------------------------------------------------------------------------------
 // Per-frame synchronization of uniforms and overlays
 
+/** The 3D view's width; the roots pane takes the rest. On narrow screens the pane, when shown, is the whole view. */
+const view3d = { w: window.innerWidth, h: window.innerHeight };
+function layout() {
+  const W = window.innerWidth, Hh = window.innerHeight, narrowScreen = W < 760;
+  const paneW = !state.split ? 0 : narrowScreen ? W : Math.round(Math.min(760, Math.max(380, 0.44 * W)));
+  document.documentElement.style.setProperty('--pane-w', `${narrowScreen ? 0 : paneW}px`);
+  document.body.classList.toggle('split', state.split && !narrowScreen);
+  document.body.classList.toggle('roots-only', state.split && narrowScreen);
+  $('roots-head').hidden = !state.split;
+  $('v-split').setAttribute('aria-pressed', String(state.split));
+  view3d.w = W - paneW; view3d.h = Hh;
+  pane.layout({ x: W - paneW, y: 0, w: paneW, h: Hh });
+  camera.aspect = Math.max(view3d.w, 1) / Hh; camera.updateProjectionMatrix();
+  dirty = true;
+}
 function resize() {
   renderer.setPixelRatio(dpr());
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+  layout();
   if (!rig.animating) rig.apply();
   const u = stars.uniforms, p = dpr();
   u.uMinPx.value = 1.15 * p; u.uKnee.value = 3.2 * p; u.uMaxPx.value = 12 * p; u.uHaloPx.value = 3 * p; u.uPointPx.value = 2.1 * p;
@@ -160,14 +178,14 @@ const labelEls = LABELS.map(([, text, big]) => {
   $('labels').append(s); return s;
 });
 function updateLabels() {
-  const m = tw.get('morph'), w = canvas.clientWidth, h = canvas.clientHeight;
+  const m = tw.get('morph'), w = view3d.w, h = view3d.h;
   const vis = tw.get('screen') > 0.3 || m > 0.5 || (rig.mode === 'origin' && tw.get('cone') > 0.3);
   LABELS.forEach(([t], i) => {
     const el = labelEls[i], t2 = G.actReal(state.g, t), [bu, bv] = Mo.boundaryPoint(t2);
     let p = new THREE.Vector3(bu * H * 1.06, H, bv * H * 1.06);
     if (m > 2 && Number.isFinite(t2)) p.lerp(new THREE.Vector3(t2 * HP, H, -HP - 0.25), m - 2);
     const q = world.localToWorld(p).project(camera);
-    const show = vis && !(m > 2 && !Number.isFinite(t2)) && Math.abs(q.z) <= 1 && Math.abs(q.x) <= 1.05 && Math.abs(q.y) <= 1.05;
+    const show = vis && w > 0 && !(m > 2 && !Number.isFinite(t2)) && Math.abs(q.z) <= 1 && Math.abs(q.x) <= 1.05 && Math.abs(q.y) <= 1.05;
     el.style.display = show ? '' : 'none';
     if (show) { el.style.left = `${((q.x + 1) / 2) * w}px`; el.style.top = `${((1 - q.y) / 2) * h}px`; }
   });
@@ -177,7 +195,7 @@ let xr = null, last = performance.now();
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const presenting = renderer.xr.isPresenting;
-  const moving = rig.update(dt) | tw.step(dt) | stepGAnimation(dt) | stepKeys(dt) | (xr?.update(dt) ?? false);
+  const moving = rig.update(dt) | tw.step(dt) | pane.step(dt) | stepGAnimation(dt) | stepKeys(dt) | (xr?.update(dt) ?? false);
   if (!dirty && !moving && !presenting) return;
   dirty = false;
   syncUniforms();
@@ -185,8 +203,21 @@ function frame(now) {
   updatePlaneView();
   updateSelectionMarker();
   if (!presenting) updateLabels();
-  if (rig.mode === 'inside') hud.update();
-  renderer.render(scene, camera);
+  if (rig.mode === 'inside') { hud.update(); const [hx, hz] = rig.heading(); pane.inside = { heading: Math.atan2(hz, hx) }; }
+  if (presenting || !state.split) {
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    renderer.render(scene, camera);
+    return;
+  }
+  // Side by side: the lattice on the left, the roots on the right, one renderer.
+  renderer.setScissorTest(true);
+  if (view3d.w > 0) {
+    renderer.setViewport(0, 0, view3d.w, view3d.h); renderer.setScissor(0, 0, view3d.w, view3d.h);
+    renderer.render(scene, camera);
+  }
+  pane.render(renderer, scene);
+  pane.drawOverlay({ selected: state.selected, hovered: state.hovered >= 0 ? stars.coefficients(state.hovered) : null, plane: state.plane, palette: state.palette });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -241,10 +272,8 @@ function flash(text) {
 // Pointer and keyboard
 
 const raycaster = new THREE.Raycaster();
-const ndc = e => {
-  const r = canvas.getBoundingClientRect();
-  return new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-};
+/** Normalized device coordinates in the 3D view (the left part of the canvas when the pane is open). */
+const ndc = e => new THREE.Vector2((e.clientX / Math.max(view3d.w, 1)) * 2 - 1, -(e.clientY / view3d.h) * 2 + 1);
 /** The half-plane point under the pointer on the current picture, or null. In the bare lattice only a line of
  * sight from the origin has one. */
 function rootAt(e) {
@@ -264,13 +293,23 @@ let skyRoot = null, hoverEvent = null;
 new PointerInput(canvas, {
   start: () => { rig.stopInertia(); },
   classify: e => {
+    if (pane.contains(e)) {
+      skyRoot = e.shiftKey ? null : pane.rootAt(e);
+      if (skyRoot) { gAnim = null; return 'pane-drag'; }
+      return 'pane-pan';
+    }
     skyRoot = rootAt(e);
     if (skyRoot) { gAnim = null; return 'sky'; }
     return rig.mode === 'outside' ? 'orbit' : 'look';
   },
-  secondary: () => (rig.mode === 'outside' ? 'pan' : 'look'),
-  drag: (kind, dx, dy, e) => {
-    if (kind === 'orbit') rig.orbit(dx * 3.2, dy * 3.2);
+  secondary: e => (pane.contains(e) ? 'pane-pan' : rig.mode === 'outside' ? 'pan' : 'look'),
+  drag: (kind, dx, dy, e, px, py) => {
+    if (kind === 'pane-pan') pane.pan(px, py);
+    else if (kind === 'pane-drag') {
+      // Inside, the pane is a fixed map, so dragging it pans; elsewhere it moves the stars as in her viewer.
+      if (pane.inside) pane.pan(px, py);
+      else { const z1 = pane.rootAt(e); if (z1 && skyRoot) setG(G.dragStep(state.g, skyRoot, z1)); if (z1) skyRoot = z1; }
+    } else if (kind === 'orbit') rig.orbit(dx * 3.2, dy * 3.2);
     else if (kind === 'pan') rig.pan(dx, dy);
     else if (kind === 'look') rig.look(dx * 1.6, dy * 1.6);
     else if (kind === 'sky') {
@@ -285,15 +324,15 @@ new PointerInput(canvas, {
     if (rig.mode === 'outside') rig.pan(dx, dy); else rig.look(dx * 1.6, dy * 1.6);
     dirty = true;
   },
-  wheel: f => { rig.zoom(f); dirty = true; },
+  wheel: (f, e) => { if (pane.contains(e)) pane.zoom(f, e); else rig.zoom(f); dirty = true; },
   end: kind => {
     // Inside, dragging the ground is walking, and stays where you leave it.
-    if (kind !== 'sky' || !state.snap || rig.mode === 'inside') return;
+    if ((kind !== 'sky' && kind !== 'pane-drag') || !state.snap || rig.mode === 'inside') return;
     const gamma = G.nearestIntegral(state.g);
     if (gamma) animateG(gamma, absorb);
   },
   click: (e, shift) => {
-    const i = pickAt(e, isMobile ? 22 : 14);
+    const i = pane.contains(e) ? pane.pick(e, isMobile ? 18 : 11) : pickAt(e, isMobile ? 22 : 14);
     if (i < 0) { if (!shift) select(null); return; }
     const coef = stars.coefficients(i);
     if (shift && state.selected) pairWith(coef); else select(coef);
@@ -303,7 +342,7 @@ new PointerInput(canvas, {
     if (hoverEvent) { hoverEvent = e; return; }
     hoverEvent = e;
     requestAnimationFrame(() => {
-      const i = pickAt(hoverEvent, 11); hoverEvent = null;
+      const ev = hoverEvent, i = pane.contains(ev) ? pane.pick(ev, 9) : pickAt(ev, 11); hoverEvent = null;
       if (i === state.hovered) return;
       state.hovered = i; dirty = true;
       canvas.classList.toggle('hovering', i >= 0);
@@ -322,6 +361,7 @@ const keys = new HeldKeys({
     else if (k === 'ArrowLeft') tour.go(state.chapter - 1);
     else if (k === 'o' || k === 'O') (rig.mode === 'origin' ? goOutside() : goOrigin());
     else if (k === 'i' || k === 'I') (rig.mode === 'inside' ? goOrigin() : goInside());
+    else if (k === 'r' || k === 'R') toggleSplit();
     else if (k === 'p' || k === 'P') setMorph((Math.round(tw.get('morph')) + 1) % 4);
     else if (k === 't') applyIntegral('T');
     else if (k === 'T') applyIntegral('Tinv');
@@ -433,6 +473,7 @@ function fade(fn, always = false) {
   setTimeout(() => { fn(); dirty = true; setTimeout(() => $('veil').classList.remove('on'), 80); }, 280);
 }
 function leaveInside() {
+  pane.inside = null;
   setWorldFrame(false);
   tw.set('floor', 0, 0);
   hud.show(false);
@@ -450,6 +491,7 @@ function goInside(pose = {}) {
     // Start inside a triangle, not on an edge: at the center of (0, 1, ∞), on the star x² − x + 1.
     setG(G.toI({ x: 0.5, y: Math.sqrt(3) / 2 }));
     hud.reset(); hud.show(true); hud.eyeLabel();
+    pane.resetView();
     $('eye').value = String(rig.inside.eye);
   }, true);
 }
@@ -541,6 +583,9 @@ tour.syncCollapse();
 $('v-outside').onclick = () => goOutside();
 $('v-origin').onclick = () => goOrigin();
 $('v-inside').onclick = () => goInside();
+$('v-split').onclick = () => toggleSplit();
+function toggleSplit() { state.split = !state.split; layout(); if (!rig.animating) rig.apply(); }
+$('roots-home').onclick = () => { pane.resetView(); dirty = true; };
 $('morph').addEventListener('input', e => { const m = Number(e.target.value); state.morphTarget = m; tw.set('morph', m, 0.15); if (m > 0.3) tw.set('screen', 1, 0.5); });
 $('g-t').onclick = () => applyIntegral('T');
 $('g-tinv').onclick = () => applyIntegral('Tinv');

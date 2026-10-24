@@ -6,10 +6,10 @@ export class PointerInput {
    * @param {HTMLCanvasElement} canvas
    * @param {{
    *   classify(e): 'sky'|'orbit'|'look'|'pan',   // what a primary drag starting at this event should do
-   *   secondary(): 'look'|'pan',                 // what a right/ctrl/alt drag does
-   *   drag(kind, dx, dy, e),                     // dx, dy as fractions of the canvas height
+   *   secondary(e): string,                      // what a right/ctrl/alt drag starting here does
+   *   drag(kind, dx, dy, e, px, py),             // dx, dy as fractions of the canvas height; px, py in pixels
    *   pinch(scale, dx, dy),                      // two fingers: zoom ratio and centroid motion
-   *   wheel(factor),
+   *   wheel(factor, e),
    *   end(kind),                                 // a drag finished (not a click)
    *   click(e, shift),
    *   hover(e),                                  // mouse moved with no button down
@@ -24,7 +24,7 @@ export class PointerInput {
     canvas.addEventListener('pointermove', e => this.move(e));
     canvas.addEventListener('pointerup', e => this.up(e));
     canvas.addEventListener('pointercancel', e => this.up(e));
-    canvas.addEventListener('wheel', e => { e.preventDefault(); this.h.wheel(Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+    canvas.addEventListener('wheel', e => { e.preventDefault(); this.h.wheel(Math.exp(e.deltaY * 0.0012), e); }, { passive: false });
   }
   two() {
     const [a, b] = [...this.pointers.values()];
@@ -35,7 +35,7 @@ export class PointerInput {
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.h.start();
     if (this.pointers.size === 2) { this.drag = { kind: 'two', ...this.two() }; return; }
-    const kind = e.button === 2 || e.ctrlKey || e.altKey ? this.h.secondary() : this.h.classify(e);
+    const kind = e.button === 2 || e.ctrlKey || e.altKey ? this.h.secondary(e) : this.h.classify(e);
     this.drag = { kind, x: e.clientX, y: e.clientY, shift: e.shiftKey, moved: 0 };
     this.canvas.classList.add('dragging');
   }
@@ -52,7 +52,7 @@ export class PointerInput {
     }
     const dx = e.clientX - d.x, dy = e.clientY - d.y;
     d.moved += Math.hypot(dx, dy); d.x = e.clientX; d.y = e.clientY;
-    this.h.drag(d.kind, dx / H, dy / H, e);
+    this.h.drag(d.kind, dx / H, dy / H, e, dx, dy);
   }
   up(e) {
     this.pointers.delete(e.pointerId);
