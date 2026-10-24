@@ -133,7 +133,7 @@ body.split #dock { right: calc(var(--pane-w) + var(--gutter)); max-width: calc(1
 body.split #inspector { top: 120px; }
 body.split #inspector { right: calc(var(--pane-w) + var(--gutter)); }
 body.split #inside-hud { max-width: calc(100vw - var(--pane-w) - 2 * var(--gutter)); top: 124px; }
-body.split .readout { left: calc((100vw - var(--pane-w)) / 2); }
+body.split .readout { top: auto; bottom: max(22px, env(safe-area-inset-bottom)); left: auto; right: calc(var(--pane-w) + var(--gutter)); transform: none; max-width: calc(100vw - var(--pane-w) - 500px); text-align: right; line-height: 1.35; }
 body.inside .readout { display: none; }
 body.split .sheet { right: calc(var(--pane-w) + var(--gutter)); }
 body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels { display: none; }
