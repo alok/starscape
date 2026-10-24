@@ -136,6 +136,12 @@ body.split #inside-hud { max-width: calc(100vw - var(--pane-w) - 2 * var(--gutte
 body.split .readout { top: auto; bottom: max(22px, env(safe-area-inset-bottom)); left: auto; right: calc(var(--pane-w) + var(--gutter)); transform: none; max-width: calc(100vw - var(--pane-w) - 500px); text-align: right; line-height: 1.35; }
 body.inside .readout { display: none; }
 body.split .sheet { right: calc(var(--pane-w) + var(--gutter)); }
+/* With room right of the tour card, the inspector sits low, off the subject framed up and to the right; the readout
+   takes its place under the dock. */
+@media (min-width: 1400px) {
+  body.split #inspector { top: auto; bottom: max(16px, env(safe-area-inset-bottom)); max-height: calc(100dvh - 150px); overflow: auto; }
+  body.split .readout { top: 124px; bottom: auto; }
+}
 body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels { display: none; }
 
 /* Labels on the boundary of the sky */
