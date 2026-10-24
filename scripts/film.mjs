@@ -87,6 +87,8 @@ body.film:not(.film-readout) #g-readout, body.film:not(.film-inspector) #inspect
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); opacity: 0; }
 body:not(.split) #film .cap { width: min(640px, calc(100vw - 68px)); }
 #film .cap.top { bottom: auto; top: 30px; }
+/* The app's readout wraps at a third of the 3D view in split; in a film the bottom is free while captions sit on top. */
+body.film.split #g-readout { max-width: calc(100vw - var(--pane-w) - 80px) !important; }
 #film .kick { font: 600 11.5px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
 #film .title { font: 400 29px/1.12 var(--serif); color: #f2f5fb; margin: 9px 0 0; }
 #film .body { font: 400 15.5px/1.48 var(--sans); color: rgba(220, 228, 242, 0.86); margin: 8px 0 0; }
