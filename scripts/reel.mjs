@@ -80,7 +80,11 @@ export default {
     // V · back to the origin; Klein → Poincaré → half-plane
     { t: 60.0, run: ({ api, state }) => { state.plane = null; api.goOrigin(); R.slow(2.4); } },
     { t: 64.0, run: ({ api }) => api.setMorph(2, 2.4) },
-    { t: 67.6, run: ({ api, S }) => { api.renderChapter(4); R.slow(3.0); api.setMorph(3, 2.8); S.tweens.set('screen', 0, 0.8); } },
+    // Chapter V's own pose is oblique, for the split view; full width, the film looks straight up at the picture.
+    { t: 67.6, run: ({ api, S }) => {
+      api.renderChapter(4); api.goOutside({ radius: 9.5, theta: 0, phi: Math.PI - 0.0001, target: [0, 4, 1.4], fov: 50 }); R.slow(3.0);
+      api.setMorph(3, 2.8); S.tweens.set('screen', 0, 0.8); S.tweens.set('cone', 0, 0.8);
+    } },
     // Ford circles: the same picture drawn as disks
     { t: 73.8, run: ({ api }) => api.setStyle(0) },
     // VI · symmetry (split): the stars in the cone, seen from outside
