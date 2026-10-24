@@ -58,9 +58,12 @@ export class Inspector {
   notes(coef, kind, d) {
     const [a, b, c] = coef, k = F.content(a, b, c), out = [];
     if (k > 1) out.push(`${k} × ${tupleText([a / k, b / k, c / k])}: same root, ${k} times farther from the origin, so ${k * k} times dimmer.`);
-    if (kind === 'upper' && k === 1) {
-      const h = F.reducedForms(-d).length;
-      out.push(`One of ${h} SL₂(ℤ)-orbit${h > 1 ? 's' : ''} on the shell Δ = ${minus(d)}.`);
+    if (kind === 'upper') {
+      // Orbits of stars on Δ = d: h(d) primitive ones, and f times each primitive orbit of discriminant d/f².
+      const classes = F.shellClasses(-d), h = classes.filter(c => c.content === 1).length, n = classes.length;
+      out.push(k === 1
+        ? `In one of the h(${minus(d)}) = ${h} primitive SL₂(ℤ)-orbits of stars on Δ = ${minus(d)}${n > h ? `, which has ${n} orbits counting multiples` : ''}.`
+        : `In ${k} times the orbit of ${tupleText([a / k, b / k, c / k])}: one of the ${n} orbits of stars on Δ = ${minus(d)}, of which h(${minus(d)}) = ${h} are primitive.`);
     }
     if (kind === 'exterior') out.push('Its plane is drawn: the geodesic between its roots.');
     const plane = this.state.plane;

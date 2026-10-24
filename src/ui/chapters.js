@@ -76,7 +76,8 @@ export const CHAPTERS = [
   {
     eyebrow: 'VII · shells',
     title: 'Discriminant shells and class numbers',
-    body: `<p>Δ is invariant, so each hyperboloid ${m('Δ = −k')} is preserved. Its lattice points are the stars of discriminant ${m('−k')}, and SL₂(ℤ) permutes them in finitely many orbits, one reduced form ${m('|b| ≤ a ≤ c')} for each: ${m('h(−k)')} of them.</p>
+    body: `<p>Δ is invariant, so each hyperboloid ${m('Δ = −k')} is preserved. Its lattice points with ${m('a > 0')} are the stars of discriminant ${m('−k')}, and SL₂(ℤ) permutes them in finitely many orbits, each with exactly one reduced form ${m('|b| ≤ a ≤ c')} (with ${m('b ≥ 0')} when ${m('|b| = a')} or ${m('a = c')}).</p>
+<p>ρ(g) and its inverse are integer matrices, so ${m('gcd(a, b, c)')} is constant on an orbit; ρ is linear, so the orbit of ${m('f·g')} is ${m('f')} times the orbit of ${m('g')}. The primitive stars make the ${m('h(−k)')} classes of the class number, and the multiples ${m('f·g')}, with ${m('g')} primitive of discriminant ${m('−k/f²')}, make ${m('h(−k/f²)')} more orbits.</p>
 <p id="shell-readout"></p>`,
     scene: { view: 'outside', pose: { radius: 26, theta: 0.5, phi: 1.25, target: [0, 8, 0] }, morph: 0, depth: 'deep',
       alpha: { upper: 1, lower: 0, exterior: 0, null: 0.3 }, cone: true, screen: false, plane: null, shell: 23, select: [2, 1, 3] },

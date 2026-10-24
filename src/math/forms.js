@@ -128,6 +128,22 @@ export function buildLattice({ ball = 6, depth = 48 } = {}) {
   };
 }
 
+/**
+ * Every positive definite form of discriminant −k up to SL₂(ℤ), one reduced representative per orbit. ρ(g) and its
+ * inverse are integer matrices, so the content f = gcd(a, b, c) is constant on an orbit; ρ is linear, so the orbit of
+ * f·g is f times the orbit of g. The orbits of content f are therefore f times the h(−k/f²) primitive classes of
+ * discriminant −k/f², and the primitive ones (f = 1) are the class number h(−k).
+ * @returns {{content:number, form:Triple, primitive:Triple}[]}
+ */
+export function shellClasses(k) {
+  const out = [];
+  for (let f = 1; f * f <= k; f++) {
+    if (k % (f * f)) continue;
+    for (const g of reducedForms(k / (f * f))) out.push({ content: f, form: g.map(x => f * x), primitive: g });
+  }
+  return out;
+}
+
 /** Number of upper-interior stars with a + c ≤ depth (her viewer reports 98,696 at depth 48). */
 export function starCount(depth) {
   let n = 0;

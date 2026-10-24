@@ -486,8 +486,13 @@ function stepShell(delta) {
 function updateShellReadout() {
   const el = document.getElementById('shell-readout'), k = state.shellK;
   if (!el || !k) return;
-  const forms = F.reducedForms(k);
-  el.innerHTML = `<b>Δ = −${k}</b>: h(−${k}) = ${forms.length}, reduced forms ${forms.map(f => `<span class="math">${F.polynomialText(...f)}</span>`).join(', ')}.`;
+  const classes = F.shellClasses(k), primitive = classes.filter(c => c.content === 1), multiples = classes.filter(c => c.content > 1);
+  const math = t => `<span class="math">${t}</span>`;
+  const forms = primitive.map(c => math(F.polynomialText(...c.form))).join(', ');
+  el.innerHTML = !multiples.length
+    ? `<b>Δ = −${k}</b>: h(−${k}) = ${primitive.length} ${primitive.length === 1 ? 'orbit' : 'orbits'}, all primitive: ${forms}.`
+    : `<b>Δ = −${k}</b>: ${classes.length} orbits. Primitive, h(−${k}) = ${primitive.length}: ${forms}. Multiples: ${
+      multiples.map(c => math(`${c.content}(${F.polynomialText(...c.primitive)})`)).join(', ')}.`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -84,7 +84,7 @@ void main() {
     bool on = abs(-2.0 * uPlane.z * a + uPlane.y * b - 2.0 * uPlane.x * c) < 0.5;
     emph = on ? 1.6 : 0.22;
   }
-  if (uShell > 0.5) emph *= (kind <= 1 && abs(abs(delta) - uShell) < 0.5) ? 1.8 : 0.08;
+  if (uShell > 0.5) emph *= (kind == 0 && abs(abs(delta) - uShell) < 0.5) ? 1.8 : 0.08;   // the stars on Δ = −k
 
   vec4 mv = modelViewMatrix * vec4(P, 1.0);
   gl_Position = projectionMatrix * mv;

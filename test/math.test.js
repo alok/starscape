@@ -46,6 +46,36 @@ test('reduced forms count class numbers', () => {
   assert.deepEqual([3, 4, 7, 8, 15, 20, 23, 47, 71].map(h), [1, 1, 1, 1, 2, 2, 3, 5, 7]);
 });
 
+/** Gauss reduction of a positive definite form by T^±1 and S: the reduced representative of its orbit. */
+function gaussReduce([a, b, c]) {
+  for (;;) {
+    while (b > a) { c += a - b; b -= 2 * a; }
+    while (b <= -a) { c += a + b; b += 2 * a; }
+    if (c < a) { [a, b, c] = [c, -b, a]; continue; }
+    if (c === a && b < 0) b = -b;
+    return [a, b, c];
+  }
+}
+
+test('shell orbits: every star of Δ = −k reduces into shellClasses(k), and h(−k) counts the primitive ones', () => {
+  for (let k = 3; k <= 160; k++) {
+    const want = F.shellClasses(k).map(c => c.form.join()).sort(), got = new Set();
+    // Every orbit's reduced form has a ≤ √(k/3) < 30, so this box meets every orbit.
+    for (let a = 1; a <= 30; a++) for (let b = -30; b <= 30; b++) {
+      if ((b * b + k) % (4 * a)) continue;
+      const f = [a, b, (b * b + k) / (4 * a)], r = gaussReduce(f);
+      assert.equal(r[1] * r[1] - 4 * r[0] * r[2], -k);
+      assert.equal(F.content(...r), F.content(...f), 'content is constant on an orbit');
+      got.add(r.join());
+    }
+    assert.deepEqual([...got].sort(), want, `k = ${k}`);
+    assert.equal(F.shellClasses(k).filter(c => c.content === 1).length, F.reducedForms(k).length);
+  }
+  // (1,0,3) and (2,2,2) share the shell Δ = −12 but not an orbit: contents 1 and 2.
+  assert.deepEqual(F.shellClasses(12).map(c => c.form), [[1, 0, 3], [2, 2, 2]]);
+  assert.equal(F.reducedForms(12).length, 1);
+});
+
 test('ρ(g) moves roots by g and preserves Δ', () => {
   const g = G.normalize([3, 1, 1, 2]);
   const z = G.act(g, { x: 0, y: 1 });

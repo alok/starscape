@@ -4,8 +4,9 @@ import Starscape.Farey
 # Exact data for the viewer
 
 Computable enumerations that the web app's tests compare against: the lattice points in a ball of the display
-basis, the stars up to depth `a + c ≤ D`, and the reduced positive definite forms of each discriminant, one per
-`SL₂(ℤ)` orbit on a shell (so their number is the class number `h(−k)`).
+basis, the stars up to depth `a + c ≤ D`, and the reduced primitive positive definite forms of each discriminant, one
+per `SL₂(ℤ)` orbit of primitive forms on a shell (so their number is the class number `h(−k)`). The shell's other orbits
+are multiples `f·g` of the primitive classes `g` of discriminant `−k/f²`; the web app's `shellClasses` lists them all.
 -/
 
 namespace Starscape
