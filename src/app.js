@@ -91,12 +91,16 @@ const view3d = { w: window.innerWidth, h: window.innerHeight };
  * Keep the subject of the 3D view out from under the tour card: shift the projection center into the free area.
  * Picking and labels go through the same projection matrix, so they stay consistent.
  */
-function frameSafeArea() {
+function frameSafeArea(mode = rig.mode) {
   const card = $('chapter'), open = !card.classList.contains('collapsed') && !narrow.matches && view3d.w > 0;
   if (!open) { camera.clearViewOffset(); return; }
-  const r = card.getBoundingClientRect();
-  const sx = Math.min(0.32 * r.width, 0.18 * view3d.w), sy = -Math.min(0.38 * r.height, 0.22 * view3d.h);
-  camera.setViewOffset(view3d.w, view3d.h, -sx, -sy, view3d.w, view3d.h);
+  const r = card.getBoundingClientRect(), w = view3d.w, h = view3d.h;
+  const sx = Math.min(0.32 * r.width, 0.18 * w), sy = -Math.min(0.38 * r.height, 0.22 * h);
+  // Shift the picture's center by (sx, sy) toward the free corner. From the origin the disk is a bounded picture to
+  // be seen whole, so also pull back by k until its upper half fits above the new center (the visible window is
+  // k times the frame, offset in frame pixels). The lattice seen from outside has no edge and keeps its scale.
+  const k = mode === 'origin' ? 1 / (1 - (2 * Math.abs(sy)) / h) : 1;
+  camera.setViewOffset(w, h, -((k - 1) * w) / 2 - k * sx, -((k - 1) * h) / 2 - k * sy, k * w, k * h);
   dirty = true;
 }
 function layout() {
@@ -497,6 +501,7 @@ function setView(mode) {
   // From the origin a star needs a smaller radius: only the nearest few resolve, the rest are points of light.
   tw.set('r0', { origin: 0.045, inside: 0.04, outside: 0.11 }[mode], 1.2);
   for (const m of ['outside', 'origin', 'inside']) $('v-' + m).setAttribute('aria-pressed', String(mode === m));
+  frameSafeArea(mode);
 }
 /**
  * Inside, the world is scaled so the ground disk (the plane Y = h) lies at your feet, and mirrored in X: the
