@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Starscape</title>
+  <meta name="description" content="Every integer quadratic ax² + bx + c is a point of ℤ³. Stand at the origin and your sky is the hyperbolic plane, full of algebraic numbers. After Katherine Stange's viewer and Harriss–Stange–Trettel.">
+  <meta name="theme-color" content="#04060c">
+  <meta property="og:title" content="Starscape: the quadratics as a night sky">
+  <meta property="og:description" content="Stand at the zero polynomial and look up: the sky is the hyperbolic plane, and its stars are algebraic numbers.">
+  <meta property="og:image" content="assets/og.png">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js"}}</script>
+</head>
+<body>
+  <canvas id="scene" aria-label="The lattice of integer quadratics as a three-dimensional star field"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+  <div id="veil" aria-hidden="true"></div>
+
+  <header id="brand">
+    <h1>Starscape</h1>
+    <p class="sub">the integer quadratics as a night sky</p>
+  </header>
+
+  <aside id="inspector" class="glass" hidden aria-live="polite">
+    <p class="kind" id="i-kind"></p>
+    <p class="poly" id="i-poly"></p>
+    <dl>
+      <dt>coefficients</dt><dd id="i-coef"></dd>
+      <dt>discriminant</dt><dd id="i-delta"></dd>
+      <dt id="i-root-label">root</dt><dd id="i-root"></dd>
+      <dt id="i-g-label" hidden>under g</dt><dd id="i-g" hidden></dd>
+    </dl>
+    <p class="note" id="i-note"></p>
+    <div class="actions" id="i-actions"></div>
+  </aside>
+
+  <section id="chapter" class="glass" aria-label="Guided tour">
+    <div class="chapter-head">
+      <span class="eyebrow" id="c-eyebrow"></span>
+      <button class="icon" id="c-collapse" aria-label="Hide the tour text" title="Hide">–</button>
+    </div>
+    <h2 id="c-title"></h2>
+    <div id="c-body"></div>
+    <div class="chapter-nav">
+      <button class="icon" id="c-prev" aria-label="Previous chapter">‹</button>
+      <ol id="c-dots"></ol>
+      <button class="icon" id="c-next" aria-label="Next chapter">›</button>
+    </div>
+  </section>
+
+  <nav id="dock" class="glass" aria-label="View controls">
+    <div class="seg" role="group" aria-label="Vantage point">
+      <button id="v-outside" aria-pressed="true" title="Orbit the lattice (O toggles)">Outside</button>
+      <button id="v-origin" aria-pressed="false" title="Stand at the zero polynomial (O toggles)">Origin</button>
+    </div>
+    <label class="morph" title="Slide every star along its ray onto the screen, then change model (P)">
+      <span class="morph-labels"><span>lattice</span><span>Klein</span><span>Poincaré</span><span>half-plane</span></span>
+      <input type="range" id="morph" min="0" max="3" step="0.001" value="0" aria-label="Picture: lattice, Klein, Poincaré or half-plane">
+    </label>
+    <div class="seg" role="group" aria-label="Symmetry">
+      <button id="g-tinv" title="Apply T⁻¹: x ↦ x − 1">T⁻¹</button>
+      <button id="g-s" title="Apply S: x ↦ −1/x">S</button>
+      <button id="g-t" title="Apply T: x ↦ x + 1">T</button>
+      <button id="g-snap" aria-pressed="true" title="After a drag, settle on SL₂(ℤ)">Snap</button>
+    </div>
+    <button id="xr-vr" class="xr" hidden>Enter VR</button>
+    <button id="xr-ar" class="xr" hidden>View in AR</button>
+    <button class="icon" id="settings-open" aria-label="Settings" title="Settings">⚙︎</button>
+    <button class="icon" id="help-open" aria-label="Help and credits" title="Help and credits (?)">?</button>
+  </nav>
+
+  <div id="g-readout" class="readout" aria-live="polite"></div>
+
+  <section id="settings" class="glass sheet" hidden aria-label="Settings">
+    <h3>Settings</h3>
+    <label>Stars <select id="s-depth">
+      <option value="24">fewer (a + c ≤ 24)</option>
+      <option value="40" selected>a + c ≤ 40</option>
+      <option value="57">her full sky (a + c ≤ 57)</option>
+      <option value="80">dense (a + c ≤ 80)</option>
+    </select></label>
+    <label>Colors <select id="s-palette"></select></label>
+    <div id="s-legend"><div id="s-bar"></div><div class="ticks"><span>|Δ| = 3</span><span>240</span></div>
+      <div class="keys"><span><i class="k-ext"></i>two real roots</span><span><i class="k-null"></i>double root</span><span><i class="k-low"></i>lower cone</span></div></div>
+    <label>Brightness <input type="range" id="s-exposure" min="0.3" max="3" step="0.01" value="1"></label>
+    <label>Star size <input type="range" id="s-size" min="0.4" max="2.5" step="0.01" value="1"></label>
+    <label class="check"><input type="checkbox" id="s-cone" checked> Light cone</label>
+    <label class="check"><input type="checkbox" id="s-dust" checked> Dust outside the cone</label>
+    <label class="check"><input type="checkbox" id="s-lower" checked> Lower cone</label>
+    <label class="check"><input type="checkbox" id="s-multiples" checked> Multiples (non-primitive forms)</label>
+    <label class="check"><input type="checkbox" id="s-motion"> Reduce motion</label>
+    <label class="check" id="s-tilt-row" hidden><input type="checkbox" id="s-tilt"> Tilt the phone to look around (Origin)</label>
+    <button id="settings-close">Done</button>
+  </section>
+
+  <section id="help" class="glass sheet" hidden aria-label="Help and credits">
+    <h3>How to move</h3>
+    <ul class="keys-list">
+      <li><b>Drag</b> to orbit. <b>Scroll</b> or pinch to zoom. <b>Right-drag</b> or two fingers to pan.</li>
+      <li><b>At the origin:</b> drag the sky to move every star by a Möbius map. Right-drag or two fingers to look around. <b>W A S D</b> lean your eye off the origin.</li>
+      <li><b>Tap</b> a star to read its polynomial. <b>Shift-tap</b> a second star for the geodesic through both.</li>
+      <li><b>← →</b> chapters · <b>O</b> outside/origin · <b>P</b> next picture · <b>T S</b> symmetries · <b>Esc</b> clear</li>
+    </ul>
+    <h3>Credits</h3>
+    <p>This is an independent implementation inspired by <b>Katherine E. Stange</b>’s <a href="https://www.katestange.net/starscape-lattice/" target="_blank" rel="noopener">Starscape / Lattice viewer</a> and her talk <a href="https://katestange.net/talks/math-exploration/" target="_blank" rel="noopener">Illustrating Mathematics</a>. The mathematics is from <b>Edmund Harriss, Katherine E. Stange and Steve Trettel</b>, <a href="https://arxiv.org/abs/2008.07655" target="_blank" rel="noopener"><i>Algebraic Number Starscapes</i></a> (§4.2). The left/right coding of geodesics in the companion Farey view is due to <b>Caroline Series</b>, <a href="https://doi.org/10.1112/jlms/s2-31.1.69" target="_blank" rel="noopener"><i>The Modular Surface and Continued Fractions</i></a> (1985).</p>
+    <p class="fine">Built by Alok Singh with AI collaborators. No code or media from the original viewer is included. <a href="https://github.com/alok/starscape" target="_blank" rel="noopener">Source</a></p>
+    <button id="help-close">Close</button>
+  </section>
+
+  <p id="fatal" role="alert" hidden></p>
+  <noscript><p class="fatal">Starscape needs JavaScript and WebGL. <a href="https://www.katestange.net/starscape-lattice/">See Katherine Stange’s original viewer.</a></p></noscript>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

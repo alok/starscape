@@ -1,0 +1,12 @@
+{
+  "name": "starscape",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The integer quadratics as a starfield: stand at the origin of coefficient space and your sky is the hyperbolic plane.",
+  "scripts": {
+    "test": "node --test test/",
+    "start": "python3 -m http.server 8848"
+  },
+  "license": "MIT"
+}

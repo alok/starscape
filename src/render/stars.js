@@ -1,0 +1,242 @@
+// The lattice of integer quadratics as one GPU point cloud.
+//
+// Each point carries its exact coefficients (a, b, c). The vertex shader applies the Lorentz transformation ρ(g),
+// then a morph through four pictures, each placed so that the next is continuous with it:
+//   0  the lattice itself, at display position v = ρ(g)·(−b, a+c, c−a);
+//   1  Klein: v slid along its ray onto the screen Y = h (unchanged as seen from the origin);
+//   2  Poincaré: the same disk, conformal;
+//   3  the upper half-plane on the same screen, i at its center and ∞ toward +Z.
+// Radii follow one rule: a star is a hyperbolic disk of radius R₀/√|Δ|. Seen from the origin that is just
+// perspective; in the half-plane it is a disk of Euclidean radius R₀/(2a), and on the real line the null forms
+// k(qx − p)² become Ford circles of radius R₀/(2kq²).
+//
+// Sprites conserve energy: below uMinPx a star keeps that size and dims by (px/uMinPx)², so brightness falls
+// like 1/distance² and the simplest numbers, which are nearest the origin, shine brightest.
+import * as THREE from 'three';
+import { paletteTexture, kindColors, DELTA_RANGE } from './palette.js';
+
+const vertexShader = /* glsl */ `
+attribute vec3 coef;
+attribute vec2 meta;
+uniform mat3 uRho;
+uniform float uMorph, uH, uHP, uR0, uUnit, uViewportH;
+uniform float uMinPx, uKnee, uMaxPx, uExposure, uHaloPx, uFalloff;
+uniform vec4 uKindAlpha;
+uniform float uDepth, uBall, uMultiples;
+uniform vec3 uPlane; uniform float uPlaneOn;
+uniform float uShell;
+uniform sampler2D uRamp;
+uniform vec3 uKindColor[4];
+uniform float uLogLo, uLogSpan;
+varying vec3 vColor;
+varying float vAlpha;
+varying float vCore;
+varying float vHalo;
+
+void main() {
+  float a = coef.x, b = coef.y, c = coef.z;
+  int kind = int(meta.x + 0.5);
+  float delta = b * b - 4.0 * a * c;
+  vec3 v0 = vec3(-b, a + c, c - a);
+
+  // Which points exist in this scene.
+  float present = kind == 0 ? (uDepth <= 0.0 || a + c <= uDepth ? 1.0 : 0.0)
+                            : (dot(v0, v0) <= uBall * uBall ? 1.0 : 0.0);
+  if (kind == 0 && uDepth <= 0.0) present = dot(v0, v0) <= uBall * uBall ? 1.0 : 0.0;
+  float alpha = present * uKindAlpha[kind];
+  if (meta.y < 0.5) alpha *= uMultiples;
+
+  vec3 v = uRho * v0;
+  float Y = v.y;
+  float m = clamp(uMorph, 0.0, 3.0);
+
+  // Stage positions and radii (display units).
+  vec3 P0 = v; float r0 = uR0;
+  vec2 k = v.xz / (abs(Y) > 1e-6 ? Y : 1e-6);
+  vec3 P1 = vec3(k.x * uH, uH, k.y * uH);
+  float r1 = uR0 * uH / max(abs(Y), 1e-6);
+  float s = sqrt(max(0.0, 1.0 - dot(k, k)));
+  vec2 p = k / (1.0 + s);
+  vec3 P2 = vec3(p.x * uH, uH, p.y * uH);
+  float rho = uR0 / sqrt(max(abs(delta), 1.0));
+  float r2 = kind == 3 ? 0.5 * r1 : uH * rho * (1.0 - dot(p, p)) * 0.5;
+  float den = max(1.0 - k.y, 1e-6);
+  vec2 z = vec2(k.x / den, s / den);
+  vec3 P3 = vec3(z.x * uHP, uH, (z.y - 1.0) * uHP);
+  float aT = 0.5 * (Y - v.z);                       // the transformed leading coefficient a′
+  float r3 = uHP * uR0 / (2.0 * max(abs(aT), 1e-3));
+
+  vec3 P; float r;
+  if (m <= 1.0) { P = mix(P0, P1, m); r = mix(r0, r1, m); }
+  else if (m <= 2.0) { P = mix(P1, P2, m - 1.0); r = mix(r1, r2, m - 1.0); }
+  else { P = mix(P2, P3, m - 2.0); r = mix(r2, r3, m - 2.0); }
+  // Off the cone's inside there is no Klein point; exterior dust fades as the morph begins.
+  if (kind == 2) alpha *= 1.0 - smoothstep(0.0, 0.6, m);
+  if (kind == 3 && abs(aT) < 1e-3 && m > 2.0) alpha = 0.0;   // the root ∞ leaves the half-plane
+
+  // Emphasis: a selected plane (geodesic) or a discriminant shell.
+  float emph = 1.0;
+  if (uPlaneOn > 0.5) {
+    bool on = abs(-2.0 * uPlane.z * a + uPlane.y * b - 2.0 * uPlane.x * c) < 0.5;
+    emph = on ? 1.6 : 0.22;
+  }
+  if (uShell > 0.5) emph *= (kind <= 1 && abs(abs(delta) - uShell) < 0.5) ? 1.8 : 0.08;
+
+  vec4 mv = modelViewMatrix * vec4(P, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float depth = max(-mv.z, 1e-4);
+  float px = r * uUnit * projectionMatrix[1][1] * 0.5 * uViewportH / depth;
+  if (emph > 1.0) px *= 1.25;
+  float dim = 1.0, drawn = px;
+  // Physically the dimming exponent is 2 (energy conservation); a little more keeps Olbers' glow at bay.
+  if (px < uMinPx) { dim = pow(px / uMinPx, uFalloff); drawn = uMinPx; }
+  else if (px > uKnee) drawn = min(uMaxPx, uKnee * sqrt(px / uKnee));
+  float size = 2.0 * drawn + uHaloPx;
+  gl_PointSize = size;
+  vCore = 2.0 * drawn / size;
+  vHalo = smoothstep(1.6, 4.5, drawn / uMinPx);
+
+  vec3 col = uKindColor[kind];
+  if (kind == 0) col = texture2D(uRamp, vec2(clamp((log(max(-delta, 1.0)) - uLogLo) / uLogSpan, 0.0, 1.0), 0.5)).rgb;
+  vColor = col;
+  vAlpha = alpha * dim * min(emph, 1.4) * uExposure;
+  if (vAlpha < 0.002) gl_PointSize = 0.0;
+}`;
+
+const fragmentShader = /* glsl */ `
+varying vec3 vColor;
+varying float vAlpha;
+varying float vCore;
+varying float vHalo;
+void main() {
+  float q = length(gl_PointCoord - 0.5) * 2.0;
+  if (q > 1.0) discard;
+  float r = q / vCore;   // in units of the core radius
+  float core = exp(-r * r * 1.8);
+  float halo = 0.09 * vHalo * exp(-r * r * 0.25) * (1.0 - q * q);
+  float f = (core + halo) * vAlpha;
+  if (f < 0.003) discard;
+  gl_FragColor = vec4(vColor * f, f);
+}`;
+
+export const KIND = { upper: 0, lower: 1, exterior: 2, null: 3 };
+
+export class StarField {
+  /** @param {{count:number, coefficients:Int32Array, kinds:Uint8Array, primitive:Uint8Array}} lattice */
+  constructor(lattice, { palette = 'starlight' } = {}) {
+    this.lattice = lattice;
+    const n = lattice.count, coef = new Float32Array(3 * n), meta = new Float32Array(2 * n);
+    for (let i = 0; i < n; i++) {
+      coef[3 * i] = lattice.coefficients[3 * i];
+      coef[3 * i + 1] = lattice.coefficients[3 * i + 1];
+      coef[3 * i + 2] = lattice.coefficients[3 * i + 2];
+      meta[2 * i] = lattice.kinds[i];
+      meta[2 * i + 1] = lattice.primitive[i];
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('coef', new THREE.BufferAttribute(coef, 3));
+    geometry.setAttribute('meta', new THREE.BufferAttribute(meta, 2));
+    // Positions are computed in the shader; a dummy attribute keeps three.js happy and the cloud never culled.
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * n), 3));
+    geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+
+    this.uniforms = {
+      uRho: { value: new THREE.Matrix3() },
+      uMorph: { value: 0 }, uH: { value: 4 }, uHP: { value: 2 }, uR0: { value: 0.12 },
+      uUnit: { value: 1 }, uViewportH: { value: 800 },
+      uMinPx: { value: 1.1 }, uKnee: { value: 3 }, uMaxPx: { value: 11 }, uExposure: { value: 1 }, uHaloPx: { value: 3 }, uFalloff: { value: 2.4 },
+      uKindAlpha: { value: new THREE.Vector4(1, 0.55, 0.45, 0.9) },
+      uDepth: { value: 0 }, uBall: { value: 6 }, uMultiples: { value: 1 },
+      uPlane: { value: new THREE.Vector3() }, uPlaneOn: { value: 0 },
+      uShell: { value: 0 },
+      uRamp: { value: paletteTexture(palette) },
+      uKindColor: { value: kindColors(palette) },
+      uLogLo: { value: Math.log(DELTA_RANGE[0]) }, uLogSpan: { value: Math.log(DELTA_RANGE[1] / DELTA_RANGE[0]) },
+    };
+    const material = new THREE.ShaderMaterial({
+      uniforms: this.uniforms, vertexShader, fragmentShader,
+      transparent: true, depthWrite: false, depthTest: false,
+      blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+      blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    });
+    this.points = new THREE.Points(geometry, material);
+    this.points.frustumCulled = false;
+    this.points.renderOrder = 10;
+  }
+
+  setPalette(name) {
+    this.uniforms.uRamp.value.dispose();
+    this.uniforms.uRamp.value = paletteTexture(name);
+    this.uniforms.uKindColor.value = kindColors(name);
+  }
+  /** ρ(g) in display coordinates, row-major. */
+  setRho(m) { this.uniforms.uRho.value.set(...m); this.rho = m; }
+
+  coefficients(i) {
+    const c = this.lattice.coefficients;
+    return [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
+  }
+
+  /** CPU mirror of the shader's position and radius for one triple (display units). Keep in sync. */
+  stage(a, b, c, rho = this.rho ?? [1, 0, 0, 0, 1, 0, 0, 0, 1]) {
+    const u = this.uniforms, m = Math.min(3, Math.max(0, u.uMorph.value)), H = u.uH.value, HP = u.uHP.value, R0 = u.uR0.value;
+    const X0 = -b, Y0 = a + c, Z0 = c - a;
+    const X = rho[0] * X0 + rho[1] * Y0 + rho[2] * Z0, Y = rho[3] * X0 + rho[4] * Y0 + rho[5] * Z0, Z = rho[6] * X0 + rho[7] * Y0 + rho[8] * Z0;
+    const delta = b * b - 4 * a * c, kind = delta === 0 ? 3 : delta > 0 ? 2 : a > 0 ? 0 : 1;
+    const Ys = Math.abs(Y) > 1e-6 ? Y : 1e-6, ku = X / Ys, kv = Z / Ys;
+    const s = Math.sqrt(Math.max(0, 1 - ku * ku - kv * kv)), pu = ku / (1 + s), pv = kv / (1 + s);
+    const rhoH = R0 / Math.sqrt(Math.max(Math.abs(delta), 1)), den = Math.max(1 - kv, 1e-6);
+    const aT = 0.5 * (Y - Z);
+    const stages = [
+      [[X, Y, Z], R0],
+      [[ku * H, H, kv * H], (R0 * H) / Math.max(Math.abs(Y), 1e-6)],
+      [[pu * H, H, pv * H], 0],
+      [[(ku / den) * HP, H, (s / den - 1) * HP], (HP * R0) / (2 * Math.max(Math.abs(aT), 1e-3))],
+    ];
+    stages[2][1] = kind === 3 ? 0.5 * stages[1][1] : H * rhoH * (1 - pu * pu - pv * pv) * 0.5;
+    const i = m <= 1 ? 0 : m <= 2 ? 1 : 2, f = m - i;
+    const [Pa, ra] = stages[i], [Pb, rb] = stages[i + 1];
+    return { position: Pa.map((x, j) => x + (Pb[j] - x) * f), radius: ra + (rb - ra) * f, kind };
+  }
+
+  /** Is point i drawn with the current filters? Mirrors the shader's `present` and kind alpha. */
+  visible(i) {
+    const u = this.uniforms, [a, b, c] = this.coefficients(i), kind = this.lattice.kinds[i];
+    const X = -b, Y = a + c, Z = c - a, inBall = X * X + Y * Y + Z * Z <= u.uBall.value ** 2;
+    const present = kind === 0 && u.uDepth.value > 0 ? Y <= u.uDepth.value : inBall;
+    const ka = [u.uKindAlpha.value.x, u.uKindAlpha.value.y, u.uKindAlpha.value.z, u.uKindAlpha.value.w][kind];
+    if (!present || ka < 0.05) return false;
+    if (!this.lattice.primitive[i] && u.uMultiples.value < 0.05) return false;
+    if (kind === 2 && u.uMorph.value > 0.5) return false;
+    if (u.uShell.value > 0.5 && !(kind <= 1 && Math.abs(Math.abs(b * b - 4 * a * c) - u.uShell.value) < 0.5)) return false;
+    return true;
+  }
+
+  /**
+   * Nearest drawn star to a pointer, in screen space. `toClip` maps display coordinates to clip space
+   * (projection · view · lattice group). Returns the index or −1.
+   */
+  pick(ndcX, ndcY, toClip, viewportH, { radiusPx = 12, aspect = 1 } = {}) {
+    const e = toClip.elements, n = this.lattice.count, rho = this.rho ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    let best = -1, bestScore = Infinity;
+    const halfH = viewportH / 2, fast = this.uniforms.uMorph.value === 0;
+    for (let i = 0; i < n; i++) {
+      if (!this.visible(i)) continue;
+      const a = this.lattice.coefficients[3 * i], b = this.lattice.coefficients[3 * i + 1], c = this.lattice.coefficients[3 * i + 2];
+      let x, y, z;
+      if (fast) {
+        const X0 = -b, Y0 = a + c, Z0 = c - a;
+        x = rho[0] * X0 + rho[1] * Y0 + rho[2] * Z0; y = rho[3] * X0 + rho[4] * Y0 + rho[5] * Z0; z = rho[6] * X0 + rho[7] * Y0 + rho[8] * Z0;
+      } else [x, y, z] = this.stage(a, b, c, rho).position;
+      const w = e[3] * x + e[7] * y + e[11] * z + e[15];
+      if (w <= 1e-6) continue;
+      const cx = (e[0] * x + e[4] * y + e[8] * z + e[12]) / w, cy = (e[1] * x + e[5] * y + e[9] * z + e[13]) / w;
+      const dx = (cx - ndcX) * halfH * aspect, dy = (cy - ndcY) * halfH, d = Math.hypot(dx, dy);
+      if (d > radiusPx) continue;
+      // Prefer nearer (brighter) stars when several are under the pointer.
+      const score = d + 4 * Math.log(w);
+      if (score < bestScore) { bestScore = score; best = i; }
+    }
+    return best;
+  }
+}
