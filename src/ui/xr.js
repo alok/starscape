@@ -6,11 +6,16 @@
 //             translation (you stay at the center and the plane flows), and "Rise into the plane" lifts the plane
 //             to eye level, where you see it edge-on as a Flatlander does.
 // Controllers, hands or gaze-and-pinch: point and pull/pinch to press buttons or select a star; hold and sweep the
-// sky (or the ground, inside) to move it by a Möbius map. Thumbsticks walk inside.
+// sky (or the ground, inside) to move it by a Möbius map. Thumbsticks walk inside. Gestures meant to feel obvious
+// once tried:
+//   two points make a line — pinch a star with each hand and the necklace through both appears;
+//   turn the dial         — pinch and twist the wrist: the sky turns about i, an elliptic element of SL₂(ℝ);
+//   palm up               — hold an open palm up for a moment and the glass window comes to your hand.
 import * as THREE from 'three';
 import * as G from '../math/sl2.js';
 import * as Mo from '../math/models.js';
 import * as F from '../math/forms.js';
+import * as Pl from '../math/planes.js';
 import { walk } from '../math/flatland.js';
 import { GlassPanel, makeGrabber, FONTS } from './xrpanel.js';
 
@@ -184,6 +189,29 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     scene.add(c);
     return c;
   });
+  // Hands, for the palm-up gesture. In WebXR joint space +Y is the back of the hand, so the palm faces up when the
+  // wrist's +Y points down. It must stay up and open (not pinching) for a moment, so a passing gesture does nothing.
+  const hands = [0, 1].map(i => { const h = renderer.xr.getHand(i); scene.add(h); return { h, since: 0, cooldown: 0 }; });
+  const qw = new THREE.Quaternion(), pa = new THREE.Vector3(), pb = new THREE.Vector3();
+  function palmUp(dt) {
+    for (const s of hands) {
+      const j = s.h.joints ?? {}, wrist = j.wrist, thumb = j['thumb-tip'], index = j['index-finger-tip'];
+      s.cooldown = Math.max(0, s.cooldown - dt);
+      if (!wrist?.visible || !thumb || !index) { s.since = 0; continue; }
+      wrist.getWorldQuaternion(qw);
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(qw).y < -0.75;
+      const open = thumb.getWorldPosition(pa).distanceTo(index.getWorldPosition(pb)) > 0.05;
+      s.since = up && open ? s.since + dt : 0;
+      if (s.since > 0.6 && !s.cooldown) {
+        // Bring the glass to the hand: just above it, facing you.
+        const p = wrist.getWorldPosition(new THREE.Vector3());
+        ui.group.position.set(p.x, p.y + 0.22, p.z);
+        ui.group.lookAt(head.x, ui.group.position.y, head.z);
+        ui.group.visible = true; uiPlaced = true; s.cooldown = 2; s.since = 0;
+      }
+    }
+  }
+
   const tmp = new THREE.Matrix4();
   function worldRay(c) {
     tmp.identity().extractRotation(c.matrixWorld);
@@ -221,16 +249,29 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     const { o, d } = rayLocal(c);
     return Mo.rayToRoot(o, d, stars.uniforms.uMorph.value, H, HP);
   }
+  /** The controller's up vector in the world, for measuring wrist roll about its pointing ray. */
+  const upOf = c => new THREE.Vector3(0, 1, 0).applyQuaternion(new THREE.Quaternion().setFromRotationMatrix(tmp.identity().extractRotation(c.matrixWorld)));
   function onSelectStart(c) {
     const hit = uiHit(c);
     if (hit?.grabber) { c.userData.held = { grab: true, offset: ui.group.position.clone().sub(hit.point), distance: hit.distance }; return; }
     if (hit) { c.userData.held = { ui: hit }; return; }
-    c.userData.held = { z: rootOfRay(c), moved: 0, start: performance.now() };
+    const star = pickRay(c);
+    c.userData.held = { z: rootOfRay(c), moved: 0, start: performance.now(), star, up: upOf(c), roll: 0, twisting: false };
+    // Two points make a line: a star pinched in each hand spans its necklace.
+    const other = controllers.find(o => o !== c && o.userData.held?.star >= 0);
+    if (star >= 0 && other) {
+      const a = stars.coefficients(other.userData.held.star), b = stars.coefficients(star);
+      if (F.discriminant(...a) < 0 && F.discriminant(...b) < 0) {
+        const plane = Pl.planeThrough(a, b);
+        if (!plane.error) { state.plane = plane; api.select(a); c.userData.held.paired = other.userData.held.paired = true; markDirty(); }
+      }
+    }
   }
   function onSelectEnd(c) {
     const h = c.userData.held; c.userData.held = null;
-    if (!h || h.grab) return;
+    if (!h || h.grab || h.paired) return;
     if (h.ui) { h.ui.button?.onPress?.(); setTimeout(renderAll, 30); return; }
+    if (h.twisting) { if (state.snap && api.rig.mode !== 'inside') { const gamma = G.nearestIntegral(state.g); if (gamma) animateG(gamma, absorb); } return; }
     if (h.moved < 0.02 && performance.now() - h.start < 650) {
       const i = pickRay(c);
       api.select(i >= 0 ? stars.coefficients(i) : null);
@@ -249,6 +290,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     if (!uiPlaced && head.lengthSq() > 0) { placeUI(); center.set(head.x, 0, head.z); }
     walkWithBody();
     place(dt);
+    palmUp(dt);
     // Keep the glass in sync with the app.
     const ch = api.chapter().index, sel = String(state.selected);
     if (ch !== lastChapter || api.rig.mode !== lastMode || sel !== lastSel) { lastChapter = ch; lastMode = api.rig.mode; lastSel = sel; renderAll(); }
@@ -264,7 +306,17 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
         const { o, d } = worldRay(c);
         ui.group.position.copy(o.addScaledVector(d, h.distance)).add(h.offset);
         ui.group.lookAt(head.x, ui.group.position.y, head.z);
-      } else if (h && !h.ui) {
+      } else if (h && !h.ui && !h.paired) {
+        // Turn the dial: wrist roll about the pointing ray, before any sweep, rotates the sky about i.
+        const { d } = worldRay(c), up = upOf(c);
+        const a0 = h.up.clone().projectOnPlane(d).normalize(), a1 = up.clone().projectOnPlane(d).normalize();
+        const roll = Math.atan2(new THREE.Vector3().crossVectors(a0, a1).dot(d), a0.dot(a1));
+        if (!h.twisting && h.moved < 0.02 && Math.abs(roll) > 0.3) { h.twisting = true; h.roll = roll; }
+        if (h.twisting) {
+          setG(G.normalize(G.multiply(G.rotationAboutI(-(roll - h.roll)), state.g)));
+          h.roll = roll;
+          continue;
+        }
         const z1 = rootOfRay(c);
         if (z1 && h.z) {
           h.moved += Math.hypot(z1.x - h.z.x, z1.y - h.z.y);
