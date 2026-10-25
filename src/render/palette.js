@@ -93,15 +93,19 @@ export function paletteTexture(name) {
     const c = p.ramp(i / (n - 1));
     data.set([...c.map(x => Math.round(x * 255)), 255], 4 * i);
   }
+  // The star shader writes its color straight to the sRGB canvas, as Stange's does, with no output encoding (one
+  // would have to come before the additive blend). So the ramp must reach it still sRGB-encoded: NoColorSpace stops
+  // the GPU decoding it to linear on sampling, which drew every star darker and more saturated than its palette.
   const tex = new THREE.DataTexture(data, n, 1, THREE.RGBAFormat);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.colorSpace = THREE.NoColorSpace;
   tex.magFilter = tex.minFilter = THREE.LinearFilter;
   tex.needsUpdate = true;
   return tex;
 }
+/** The flat colors of the other kinds, as raw sRGB values for the same reason (Color(hex) would linearize them). */
 export const kindColors = name => {
   const p = PALETTES[name] ?? PALETTES.spectrum;
-  return ['ramp', p.lower, p.exterior, p.null].map(h => (h === 'ramp' ? new THREE.Color(1, 1, 1) : new THREE.Color(h)));
+  return ['ramp', p.lower, p.exterior, p.null].map(h => (h === 'ramp' ? new THREE.Color(1, 1, 1) : new THREE.Color(...hex(h))));
 };
 export function gradientCSS(name) {
   const p = PALETTES[name] ?? PALETTES.spectrum;
