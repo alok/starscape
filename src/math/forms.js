@@ -192,6 +192,27 @@ export function starCount(depth) {
   return n;
 }
 
+/**
+ * The reduced form in the SL₂(ℤ)-orbit of a definite form (Δ < 0), as BigInts, else null: |b| ≤ a ≤ c, b ≥ 0
+ * if |b| = a or a = c, for −f when a < 0 (then negated back). Gauss reduction, translating by the whole multiple at
+ * once, so it takes O(log) steps for labels of any size. ρ is linear, so content and sign come along unchanged.
+ */
+export function reduce(a, b, c) {
+  [a, b, c] = [a, b, c].map(BigInt);
+  if (b * b - 4n * a * c >= 0n) return null;
+  const sign = a < 0n ? -1n : 1n;
+  [a, b, c] = [sign * a, sign * b, sign * c];
+  for (;;) {
+    // x ↦ x + ny takes (a, b, c) to (a, b + 2an, an² + bn + c); n = ⌊(a − b)/2a⌋ puts b in (−a, a].
+    const n = floorDiv(a - b, 2n * a);
+    c += (a * n + b) * n; b += 2n * a * n;
+    if (c < a) { [a, b, c] = [c, -b, a]; continue; }   // S: (x, y) ↦ (−y, x)
+    if (a === c && b < 0n) b = -b;
+    return [sign * a, sign * b, sign * c];
+  }
+}
+const floorDiv = (x, y) => (x % y < 0n ? x / y - 1n : x / y);   // y > 0; BigInt division truncates toward 0
+
 /** Reduced positive definite forms of discriminant −k: |b| ≤ a ≤ c, b ≥ 0 if |b| = a or a = c, primitive. */
 export function reducedForms(k) {
   const out = [];

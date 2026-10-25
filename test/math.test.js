@@ -116,6 +116,45 @@ test('shell orbits: every star of Δ = −k reduces into shellClasses(k), and h(
   assert.equal(F.reducedForms(12).length, 1);
 });
 
+const isReduced = ([a, b, c]) => Math.abs(b) <= a && a <= c && (b >= 0 || (-b !== a && a !== c));
+
+test('reduce finds the one reduced form in the orbit, by brute force over SL₂(ℤ)', () => {
+  // Every γ ∈ SL₂(ℤ) with entries in [−6, 6]: enough to reach the reduced form of any star with |coef| ≤ 10.
+  const gammas = [];
+  for (let p = -6; p <= 6; p++) for (let q = -6; q <= 6; q++) for (let r = -6; r <= 6; r++) for (let s = -6; s <= 6; s++) {
+    if (p * s - q * r === 1) gammas.push(G.pushforward([p, q, r, s]));
+  }
+  for (let a = 1; a <= 10; a++) for (let b = -10; b <= 10; b++) for (let c = 1; c <= 10; c++) {
+    if (b * b >= 4 * a * c) continue;
+    const found = new Set();
+    for (const m of gammas) { const g = G.apply3(m, [a, b, c]); if (isReduced(g)) found.add(g.join()); }
+    assert.equal(found.size, 1, `one reduced form in the orbit of (${a}, ${b}, ${c})`);
+    assert.equal(F.reduce(a, b, c).join(), [...found][0], `(${a}, ${b}, ${c})`);
+    assert.equal(F.reduce(-a, -b, -c).map(x => -x).join(), [...found][0], 'a lower star reduces through −f');
+  }
+  assert.equal(F.reduce(1, 0, -1), null);
+  assert.equal(F.reduce(0, 0, 1), null);
+});
+
+test('reduce undoes long words in T and S, far past 2⁵³', () => {
+  // T^n: (a, b, c) ↦ (a, b + 2an, an² + bn + c); S: (a, b, c) ↦ (c, −b, a). Both are in SL₂(ℤ).
+  const T = ([a, b, c], n) => [a, b + 2n * a * n, (a * n + b) * n + c], S = ([a, b, c]) => [c, -b, a];
+  let seed = 7;
+  const rand = n => { seed = (seed * 48271) % 2147483647; return BigInt(seed % n) - BigInt(n >> 1); };
+  for (const k of [3, 4, 23, 71, 1368, 39999]) {
+    for (const r of F.shellClasses(k).map(o => o.form.map(BigInt))) {
+      let f = r;
+      for (let i = 0; i < 40; i++) f = S(T(f, rand(2001)));
+      assert.ok(f.some(x => x > 2n ** 200n || x < -(2n ** 200n)), 'the word leaves the doubles far behind');
+      assert.deepEqual(F.reduce(...f), r, `k = ${k}`);
+      assert.deepEqual(F.reduce(...f.map(x => -x)), r.map(x => -x));
+    }
+  }
+  // A multiple's class is the multiple of its primitive class (ρ is linear).
+  assert.deepEqual(F.reduce(26, 40, 68), [26n, -12n, 54n]);
+  assert.deepEqual(F.reduce(13, 20, 34), [13n, -6n, 27n]);
+});
+
 test('ρ(g) moves roots by g and preserves Δ', () => {
   const g = G.normalize([3, 1, 1, 2]);
   const z = G.act(g, { x: 0, y: 1 });
