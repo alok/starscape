@@ -67,7 +67,7 @@ export function realRoots(a, b, c) {
 
 /**
  * Exact text for the roots of an integer form (Numbers or BigInts): "(−1 + i√3)/2" (upper root only when Δ < 0),
- * "i", "(3 ± √5)/2", "−1, 1", "1/2 (double)", "−2 and ∞".
+ * "i", "(3 ± √5)/2", "−1 and 1", "1/2 (double)", "−2 and ∞".
  */
 export function rootText(a, b, c) {
   [a, b, c] = [a, b, c].map(BigInt);
@@ -80,7 +80,7 @@ export function rootText(a, b, c) {
   if (a < 0n) [a, b, c] = [-a, -b, -c];
   if (d === 0n) return fraction(-b, 2n * a) + ' (double)';
   const [s, r] = squarePart(d < 0n ? -d : d);
-  if (d > 0n && r === 1n) return fraction(-b - s, 2n * a) + ', ' + fraction(-b + s, 2n * a);
+  if (d > 0n && r === 1n) return fraction(-b - s, 2n * a) + ' and ' + fraction(-b + s, 2n * a);
   // (−b ± k·√r)/q in lowest terms; for Δ < 0 the upper root takes +.
   const g = gcd(gcd(b, s), 2n * a), p = -b / g, q = (2n * a) / g, k = s / g;
   const rad = (k === 1n ? '' : k) + (d < 0n ? 'i' : '') + (r === 1n ? '' : '√' + r);

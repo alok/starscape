@@ -35,7 +35,7 @@ test('polynomial and root text', () => {
   assert.equal(F.rootText(1, 0, 1), 'i');
   assert.equal(F.rootText(1, 1, 1), '(−1 + i√3)/2');
   assert.equal(F.rootText(2, 0, 2), 'i');
-  assert.equal(F.rootText(1, 0, -1), '−1, 1');
+  assert.equal(F.rootText(1, 0, -1), '−1 and 1');
   assert.equal(F.rootText(1, -1, -1), '(1 ± √5)/2');
   assert.equal(F.rootText(4, -4, 1), '1/2 (double)');
   assert.equal(F.rootText(0, 1, 2), '−2 and ∞');
@@ -57,8 +57,8 @@ test('Δ, kind and root text stay exact past 2⁵³', () => {
   assert.equal(F.discriminantExact(0n, 999999999999n, 1n), 999999999998000000000001n);
   // Δ = (2n+1)² − 4n(n+1) = 1 and Δ = 1 − 4·47453133²: doubles round them to 0 and to −…756.
   for (const [t, d, kind, root] of [
-    [[47453133, 94906267, 47453134], 1, 'exterior', '−47453134/47453133, −1'],
-    [[499999999999, 999999999999, 500000000000], 1, 'exterior', '−500000000000/499999999999, −1'],
+    [[47453133, 94906267, 47453134], 1, 'exterior', '−47453134/47453133 and −1'],
+    [[499999999999, 999999999999, 500000000000], 1, 'exterior', '−500000000000/499999999999 and −1'],
     [[-47453133, 1, -47453133], -9007199326062755n, 'lower', '(1 + 167i√322966019795)/94906266'],
     [[42443373, 42443373, -42443373], 9007199558085645n, 'exterior', '(−1 ± √5)/2'],
     [[10000, 100000001, 250000005001], -39999, 'upper', '(−100000001 + i√39999)/20000'],
