@@ -244,7 +244,7 @@ export class StarField {
     if (!this.lattice.primitive[i] && u.uMultiples.value < 0.05) return false;
     if (kind === 2 && morph > 0.5) return false;
     if (kind === 3 && this.stage(a, b, c, rho, morph).hidden) return false;
-    if (u.uShell.value > 0.5 && !(kind === 0 && Math.abs(Math.abs(b * b - 4 * a * c) - u.uShell.value) < 0.5)) return false;
+    // A shown shell only dims the stars off it (the shader's emphasis), so they stay pickable.
     return true;
   }
 
