@@ -156,7 +156,8 @@ export class RootsPane {
   /** Pane pixel position of a lattice point under the current g and picture, or null. */
   pixelOf(coef) {
     const st = this.stars.stage(...coef, G.displayPushforward(this.g()), this.morph);
-    return st.kind === 2 ? null : this.toPixel(st.position[0], st.position[2]);
+    // Dust has no point here, and a root at ∞ is not drawn in the half-plane: ring neither.
+    return st.kind === 2 || st.hidden ? null : this.toPixel(st.position[0], st.position[2]);
   }
   /** Pane pixel of a Klein point. */
   pixelOfKlein(ku, kv) { return this.toPixel(...Mo.pictureOf(ku, kv, this.morph, this.H, this.HP)); }
@@ -256,7 +257,8 @@ export class RootsPane {
     const v = this.view(), s = this.rect.h / (2 * v.half), m = Math.min(3, Math.max(1, this.morph));
     let best = -1, bestD = radiusPx;
     for (let i = 0; i < L.count; i++) {
-      if (L.kinds[i] === 2 || !stars.visible(i)) continue;
+      // Drawn in this picture, not the 3D view's: the half-plane hides c·y² (root ∞), whose formula lands on 0.
+      if (L.kinds[i] === 2 || !stars.visible(i, this.morph, rho)) continue;
       const a = co[3 * i], b = co[3 * i + 1], c = co[3 * i + 2], X0 = -b, Y0 = a + c, Z0 = c - a;
       let x, z;
       if (L.kinds[i] === 3) {
@@ -269,8 +271,9 @@ export class RootsPane {
       }
       const dx = this.rect.w / 2 + (x - v.cx) * s - px0, dy = this.rect.h / 2 - (z - v.cz) * s - py0;
       if (Math.abs(dx) > bestD || Math.abs(dy) > bestD) continue;
-      // ±f share a root, so in a picture they coincide; on a tie prefer a > 0, the star rather than its negative.
-      const d = Math.hypot(dx, dy) + (a < 0 ? 1e-3 : 0);
+      // ±f share a root, so in a picture they coincide; on a tie prefer the one whose leading coefficient is positive:
+      // the star rather than its negative, and c·y² with c > 0 at ∞.
+      const d = Math.hypot(dx, dy) + ((a || b || c) < 0 ? 1e-3 : 0);
       if (d < bestD) { bestD = d; best = i; }
     }
     return best;

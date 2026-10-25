@@ -201,7 +201,7 @@ function updateSelectionMarker() {
   const place = (sprite, coef, minPx) => {
     if (!coef) { sprite.visible = false; return null; }
     const st = stars.stage(...coef, rho);
-    if (st.kind === 2 && m > 0.5) { sprite.visible = false; return null; }
+    if ((st.kind === 2 && m > 0.5) || st.hidden) { sprite.visible = false; return null; }
     sprite.position.set(...st.position);
     const d = camera.position.distanceTo(world.localToWorld(sprite.position.clone()));
     const rpx = (st.radius * world.scale.y * camera.projectionMatrix.elements[5] * 0.5 * renderer.domElement.height) / Math.max(d, 1e-3);
