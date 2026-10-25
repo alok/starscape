@@ -41,6 +41,36 @@ test('polynomial and root text', () => {
   assert.equal(F.rootText(0, 1, 2), '−2 and ∞');
 });
 
+test('Δ, kind and root text stay exact past 2⁵³', () => {
+  // 12-digit coefficients: Δ needs 25 digits, and b² − 4ac in doubles loses the last 11.
+  assert.equal(F.discriminantExact(999999999999, 1, 999999999999), -3999999999992000000000003n);
+  assert.equal(F.discriminantExact(0n, 999999999999n, 1n), 999999999998000000000001n);
+  // Δ = (2n+1)² − 4n(n+1) = 1 and Δ = 1 − 4·47453133²: doubles round them to 0 and to −…756.
+  for (const [t, d, kind, root] of [
+    [[47453133, 94906267, 47453134], 1, 'exterior', '−47453134/47453133, −1'],
+    [[499999999999, 999999999999, 500000000000], 1, 'exterior', '−500000000000/499999999999, −1'],
+    [[-47453133, 1, -47453133], -9007199326062755n, 'lower', '(1 + 167i√322966019795)/94906266'],
+    [[42443373, 42443373, -42443373], 9007199558085645n, 'exterior', '(−1 ± √5)/2'],
+    [[10000, 100000001, 250000005001], -39999, 'upper', '(−100000001 + i√39999)/20000'],
+    [[1, 0, 4012009], -16048036, 'upper', '2003i'],
+  ]) {
+    assert.equal(F.discriminantExact(...t), BigInt(d), `Δ${t}`);
+    assert.equal(F.kind(...t), kind, `kind ${t}`);
+    assert.equal(F.rootText(...t), root, `root ${t}`);
+    assert.equal(F.rootText(...t.map(BigInt)), root, 'BigInt coefficients give the same text');
+  }
+  // The Number Δ is exact up to 2⁵³ and keeps its sign beyond.
+  for (let i = 0; i < 2000; i++) {
+    const t = [0, 1, 2].map(() => Math.round((Math.random() - 0.5) * 2 ** (10 + (i % 44))));
+    const exact = F.discriminantExact(...t), d = F.discriminant(...t);
+    assert.equal(Math.sign(d), Number(exact > 0n) - Number(exact < 0n), `sign of Δ${t}`);
+    if (exact <= 2n ** 53n && exact >= -(2n ** 53n)) assert.equal(BigInt(d), exact, `Δ${t}`);
+  }
+  assert.equal(F.polynomialText(999999999999n * 10n ** 9n, -1n, 0n), '999999999999000000000x² − x');
+  assert.deepEqual(F.squarePart(9007199326062755n), [167n, 322966019795n]);
+  assert.deepEqual(F.squarePart(4n * 2003n ** 2n), [4006n, 1n]);
+});
+
 test('reduced forms count class numbers', () => {
   const h = k => F.reducedForms(k).length;
   assert.deepEqual([3, 4, 7, 8, 15, 20, 23, 47, 71].map(h), [1, 1, 1, 1, 2, 2, 3, 5, 7]);

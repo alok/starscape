@@ -5,8 +5,17 @@
 // 45° double cone, and the forms with complex roots (Δ < 0) are the timelike vectors.
 
 /** @typedef {[number, number, number]} Triple */
+// A label relabeled by SL₂(ℤ) can outgrow the safe integers, so the text below also takes BigInt coefficients.
 
-export const discriminant = (a, b, c) => b * b - 4 * a * c;
+/** Δ = b² − 4ac exactly, as a BigInt; the coefficients may be Numbers or BigInts. */
+export const discriminantExact = (a, b, c) => BigInt(b) * BigInt(b) - 4n * BigInt(a) * BigInt(c);
+const isNumber = x => typeof x === 'number';
+/** Δ as a Number: exact whenever |Δ| ≤ 2⁵³, and of the right sign for any integer label. */
+export function discriminant(a, b, c) {
+  // b² and 4ac are exact doubles while |b| ≤ 2²⁶ and |ac| ≤ 2⁵⁰, and then so is their difference, |Δ| ≤ 2⁵³.
+  if (isNumber(a) && isNumber(b) && isNumber(c) && Math.abs(b) <= 2 ** 26 && Math.abs(a * c) <= 2 ** 50) return b * b - 4 * a * c;
+  return Number(discriminantExact(a, b, c));
+}
 
 /** 'upper' (Δ<0, a>0), 'lower' (Δ<0, a<0), 'exterior' (Δ>0, two real roots) or 'null' (Δ=0). */
 export function kind(a, b, c) {
@@ -20,8 +29,9 @@ export const toDisplay = (a, b, c) => [-b, a + c, c - a];
 /** Inverse of toDisplay; exact when X, Y+Z are integers of matching parity. @returns {Triple} */
 export const fromDisplay = (X, Y, Z) => [(Y - Z) / 2, -X, (Y + Z) / 2];
 
+/** gcd of two Numbers or of two BigInts. */
 export function gcd(a, b) {
-  a = Math.abs(a); b = Math.abs(b);
+  a = a < 0 ? -a : a; b = b < 0 ? -b : b;
   while (b) [a, b] = [b, a % b];
   return a;
 }
@@ -30,11 +40,11 @@ export const isPrimitive = (a, b, c) => content(a, b, c) === 1;
 
 /** The form in the source viewer's typography: x² + x + 1, 2x² − 2x + 4, −x² + x − 2. Multiples stay unreduced. */
 export function polynomialText(a, b, c) {
-  const terms = [[a, 'x²'], [b, 'x'], [c, '']].filter(([k]) => k !== 0);
+  const terms = [[a, 'x²'], [b, 'x'], [c, '']].map(([k, power]) => [BigInt(k), power]).filter(([k]) => k !== 0n);
   if (!terms.length) return '0';
   return terms.map(([k, power], i) => {
-    const m = Math.abs(k), body = (power && m === 1 ? '' : m) + power;
-    return i ? (k < 0 ? ' − ' : ' + ') + body : (k < 0 ? '−' : '') + body;
+    const m = k < 0n ? -k : k, body = (power && m === 1n ? '' : m) + power;
+    return i ? (k < 0n ? ' − ' : ' + ') + body : (k < 0n ? '−' : '') + body;
   }).join('');
 }
 
@@ -56,38 +66,55 @@ export function realRoots(a, b, c) {
 }
 
 /**
- * Exact text for the roots of an integer form: "(−1 + i√3)/2" (upper root only when Δ < 0),
+ * Exact text for the roots of an integer form (Numbers or BigInts): "(−1 + i√3)/2" (upper root only when Δ < 0),
  * "i", "(3 ± √5)/2", "−1, 1", "1/2 (double)", "−2 and ∞".
  */
 export function rootText(a, b, c) {
-  const d = discriminant(a, b, c);
-  if (a === 0) {
-    if (b === 0) return c === 0 ? 'every x' : 'none';
+  [a, b, c] = [a, b, c].map(BigInt);
+  const d = b * b - 4n * a * c;
+  if (a === 0n) {
+    if (b === 0n) return c === 0n ? 'every x' : 'none';
     return fraction(-c, b) + ' and ∞';
   }
-  if (a < 0) [a, b, c] = [-a, -b, -c];
-  if (d === 0) return fraction(-b, 2 * a) + ' (double)';
-  const [s, r] = squarePart(Math.abs(d));
-  if (d > 0 && r === 1) return fraction(-b - s, 2 * a) + ', ' + fraction(-b + s, 2 * a);
+  if (a < 0n) [a, b, c] = [-a, -b, -c];
+  if (d === 0n) return fraction(-b, 2n * a) + ' (double)';
+  const [s, r] = squarePart(d < 0n ? -d : d);
+  if (d > 0n && r === 1n) return fraction(-b - s, 2n * a) + ', ' + fraction(-b + s, 2n * a);
   // (−b ± k·√r)/q in lowest terms; for Δ < 0 the upper root takes +.
-  const g = gcd(gcd(b, s), 2 * a), p = -b / g, q = (2 * a) / g, k = s / g;
-  const rad = (k === 1 ? '' : k) + (d < 0 ? 'i' : '') + (r === 1 ? '' : '√' + r);
-  const sign = d < 0 ? '+' : '±';
-  const body = p === 0 ? (d < 0 ? rad : '±' + rad) : `${minus(p)} ${sign} ${rad}`;
-  return q === 1 ? body : `(${body})/${q}`;
+  const g = gcd(gcd(b, s), 2n * a), p = -b / g, q = (2n * a) / g, k = s / g;
+  const rad = (k === 1n ? '' : k) + (d < 0n ? 'i' : '') + (r === 1n ? '' : '√' + r);
+  const sign = d < 0n ? '+' : '±';
+  const body = p === 0n ? (d < 0n ? rad : '±' + rad) : `${minus(p)} ${sign} ${rad}`;
+  return q === 1n ? body : `(${body})/${q}`;
 }
-const minus = n => (n < 0 ? '−' + -n : String(n));
+const minus = n => (n < 0n ? '−' + -n : String(n));
 function fraction(p, q) {
-  if (q < 0) [p, q] = [-p, -q];
-  const g = gcd(p, q) || 1;
+  if (q < 0n) [p, q] = [-p, -q];
+  const g = gcd(p, q) || 1n;
   p /= g; q /= g;
-  return q === 1 ? minus(p) : `${minus(p)}/${q}`;
+  return q === 1n ? minus(p) : `${minus(p)}/${q}`;
 }
-/** n = s²·r with r squarefree. */
+const TRIAL = 2n ** 18n;
+/**
+ * n = s²·r for an integer n > 0, as BigInts. Trial division runs to ∛n, where the cofactor has at most two prime
+ * factors and so is a square or squarefree: then r is squarefree. Past n = 2⁵⁴ it stops at 2¹⁸ (≈ 6 ms), and r may
+ * keep the square of a prime above that: the text is still exact, only not fully simplified.
+ */
 export function squarePart(n) {
-  let s = 1, r = n;
-  for (let f = 2; f * f <= r; f++) while (r % (f * f) === 0) { r /= f * f; s *= f; }
-  return [s, r];
+  let s = 1n, r = 1n, m = BigInt(n);
+  for (let p = 2n; p <= TRIAL && p * p * p <= m; p += p === 2n ? 1n : 2n) {
+    for (; m % (p * p) === 0n; m /= p * p) s *= p;
+    if (m % p === 0n) { m /= p; r *= p; }
+  }
+  const t = isqrt(m);
+  return t * t === m ? [s * t, r] : [s, r * m];
+}
+/** ⌊√n⌋ for a BigInt n ≥ 0: Newton's method decreases to it from any start above, here 2^⌈bits/2⌉. */
+function isqrt(n) {
+  if (n < 2n) return n;
+  let x = 1n << BigInt(Math.ceil(n.toString(2).length / 2));
+  for (let y = (x + n / x) / 2n; y < x; y = (x + n / x) / 2n) x = y;
+  return x;
 }
 
 /**
