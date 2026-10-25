@@ -65,7 +65,7 @@ scripts/      no-cache dev server; headless screenshots at exact device sizes, a
 
 ## What is checked, and how
 
-- **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text; class numbers; ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
+- **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text, exact past 2⁵³; class numbers; the reduced form of a star's orbit, against a brute-force search of SL₂(ℤ); ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
 - **Lean 4** (`lean/`): see [its README](lean/README.md) for which statements are kernel-checked, which are `decide` fixtures and which are compiled tests.
 - **The GPU's arithmetic** ([`lean-float/`](lean-float/README.md), on FloatLib): the shader's float32 Δ is exact, and its plane test marks exactly the stars on the plane whenever the products stay below 2²⁴. The app checks that bound at runtime; `test/float32.test.js` replays the shader with `Math.fround`.
 - **Visual and device behavior** is checked in desktop Chrome and under phone emulation (390×844, touch). WebXR has been exercised in an emulator, not yet on a physical headset.
