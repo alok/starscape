@@ -120,12 +120,14 @@ export const rotationAboutI = phi => [Math.cos(phi), -Math.sin(phi), Math.sin(ph
 
 /** Pᵗ for a symmetric positive definite 2×2 matrix P = [α, β, β, γ]. */
 export function symmetricPower(P, t) {
-  const [a, b, , c] = P, m = (a + c) / 2, r = Math.hypot((a - c) / 2, b);
-  const l1 = m + r, l2 = Math.max(m - r, 1e-300);
+  const [a, b, , c] = P, m = (a + c) / 2, d = (a - c) / 2, r = Math.hypot(d, b);
+  // l2 = det/l1, not m − r, which cancels when P is far from i (l1 ≫ l2).
+  const l1 = m + r, l2 = Math.max((a * c - b * b) / l1, 1e-300);
   if (r < 1e-15) return [l1 ** t, 0, 0, l1 ** t];
-  // Unit eigenvector for l1.
-  let vx = b, vy = l1 - a;
-  if (Math.hypot(vx, vy) < 1e-15) { vx = l1 - c; vy = b; }
+  // Unit eigenvector for l1, from the row of P − l1 that does not cancel: l1 − c = r + d and l1 − a = r − d, so
+  // (r + d, b) when d ≥ 0, else (b, r − d). Either has length at least r. (b, l1 − a) alone is rounding noise
+  // when b ≈ 0 and a > c, and then swaps the eigenvalues.
+  let [vx, vy] = d >= 0 ? [r + d, b] : [b, r - d];
   const n = Math.hypot(vx, vy); vx /= n; vy /= n;
   const p1 = l1 ** t, p2 = l2 ** t;
   return [p1 * vx * vx + p2 * vy * vy, (p1 - p2) * vx * vy, (p1 - p2) * vx * vy, p1 * vy * vy + p2 * vx * vx];

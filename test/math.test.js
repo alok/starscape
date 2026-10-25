@@ -143,3 +143,21 @@ test('snap: nearestIntegral declines a γ with an entry past 2²⁰, the last tr
     if (gamma) assert.ok(G.isIntegral(gamma) && gamma.every(x => Math.abs(x) <= 2 ** 20), `${gamma}`);
   }
 });
+
+test('interpolate: the snap path runs along the geodesic from g·i to γ·i at constant speed, deep in the cusp too', () => {
+  // Pᵗ of a diagonal matrix is its entrywise power. Computed as (b, l1 − a), the eigenvector of diag(16, 1/16) was
+  // rounding noise, and swapped the eigenvalues.
+  for (const l of [3, 15.989016500355701, 1 / 0.06254293376817475, 255.33, 1e6]) for (const P of [[l, 0, 0, 1 / l], [1 / l, 0, 0, l]]) {
+    const Q = G.symmetricPower(P, 0.5);
+    close(Q[0] / Math.sqrt(P[0]), 1, 1e-12); close(Q[3] / Math.sqrt(P[3]), 1, 1e-12); close(Q[1], 0, 1e-12);
+  }
+  const I = { x: 0, y: 1 }, s = Math.sqrt(255.32891515338883);
+  // A real drag straight down the pane's centre line (g·i = 0.0039i, γ = I), and the centre lifted to 255i, turned.
+  for (const g of [[0.06254293376817475, 0, 0, 15.989016500355701], G.multiply([s, 0, 0, 1 / s], G.rotationAboutI(Math.PI / 2))]) {
+    const gamma = G.nearestIntegral(g), z0 = G.act(g, I), z1 = G.act(gamma, I), D = G.hyperbolicDistance(z0, z1);
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      const z = G.act(G.interpolate(g, gamma, t), I);
+      close(G.hyperbolicDistance(z0, z), t * D, 1e-6); close(G.hyperbolicDistance(z, z1), (1 - t) * D, 1e-6);
+    }
+  }
+});
