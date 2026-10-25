@@ -67,7 +67,10 @@ void main() {
   vec3 w = uCull * v0;
   bool deep = kind == 0 || (kind == 3 && a + c > 0.0);
   float alpha = (deep && uDepth > 0.0 ? edge(w.y, uDepth) : edge(length(w), uBall)) * uKindAlpha[kind];
-  if (meta.y < 0.5) alpha *= uMultiples;
+  // A root belongs to the class [a : b : c], so as the sky flattens into a picture a star's multiples, which share
+  // its root, fade away (as in Stange's pane) instead of mixing their own colors into it. The null multiples
+  // k(qx − p)² stay: drawn as disks they nest inside their Ford circle.
+  if (meta.y < 0.5) alpha *= uMultiples * (kind == 0 ? 1.0 - smoothstep(0.0, 1.0, m) : 1.0);
 
   vec3 v = uRho * v0;
   float Y = v.y;
@@ -189,7 +192,8 @@ const PAD = 1.3;
 /** Re-enumerate once the viewpoint is this far (hyperbolic distance) from the catalogue's; well inside ln PAD. */
 const DRIFT = 0.15;
 const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1], I = { x: 0, y: 1 };
-const edge = (x, bound) => { const t = Math.min(1, Math.max(0, (x - 0.86 * bound) / (0.14 * bound))); return 1 - t * t * (3 - 2 * t); };
+const smoothstep = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+const edge = (x, bound) => 1 - smoothstep(0.86 * bound, bound, x);
 
 /**
  * γ ∈ SL₂(ℤ) moving z into the standard fundamental domain (|x| ≤ ½, |z| ≥ 1), with γ·z; null if z is out of reach
@@ -367,7 +371,7 @@ export class StarField {
     const present = deep && u.uDepth.value > 0 ? edge(y, u.uDepth.value) : edge(Math.hypot(x, y, z), u.uBall.value);
     const ka = [u.uKindAlpha.value.x, u.uKindAlpha.value.y, u.uKindAlpha.value.z, u.uKindAlpha.value.w][kind];
     if (present * ka < 0.05) return false;
-    if (!L.primitive[i] && u.uMultiples.value < 0.05) return false;
+    if (!L.primitive[i] && u.uMultiples.value * (kind === 0 ? 1 - smoothstep(0, 1, morph) : 1) < 0.05) return false;
     if (kind === 2 && morph > 0.5) return false;
     if (kind === 3 && this.stage(a, b, c, r, morph).hidden) return false;
     if (u.uShell.value > 0.5 && !(kind === 0 && Math.abs(Math.abs(b * b - 4 * a * c) - u.uShell.value) < 0.5)) return false;
