@@ -15,6 +15,14 @@ export function button(label, run) {
   b.type = 'button'; b.textContent = label; b.addEventListener('click', run);
   return b;
 }
+/**
+ * The exact label to describe, as BigInts. `state.selected` is Numbers, for drawing; a relabel past 2⁵³ keeps the
+ * exact label in `state.selectedExact`, which is used whenever it is the one `coef` rounds from.
+ */
+export function exactLabel(coef, state) {
+  const x = state.selectedExact;
+  return x && coef === state.selected && x.every((v, i) => Number(v) === coef[i]) ? x : coef.map(BigInt);
+}
 
 export class Inspector {
   /**
@@ -28,21 +36,23 @@ export class Inspector {
     });
   }
   hide() { this.el.hidden = true; }
-  /** Show `coef`; a preview (hover) leaves out the actions. */
+  /** Show `coef` (Numbers or BigInts); a preview (hover) leaves out the actions. */
   show(coef, { preview = false } = {}) {
     if (!coef) return this.hide();
-    const { state } = this, [a, b, c] = coef, kind = F.kind(a, b, c), d = F.discriminant(a, b, c);
+    // Every word is computed from the exact label; the Number d only places the swatch and gates the actions.
+    const { state } = this, e = exactLabel(coef, state), [a, b, c] = e, kind = F.kind(a, b, c);
+    const D = F.discriminantExact(a, b, c), d = Number(D), root = F.rootText(a, b, c);
     this.el.hidden = false; this.el.classList.toggle('preview', preview);
     const p = PALETTES[state.palette];
     const swatch = kind === 'upper' ? `rgb(${p.ramp(deltaPosition(d)).map(x => Math.round(x * 255)).join(',')})` : p[kind];
     $('i-kind').innerHTML = `<span class="swatch" style="background:${swatch}"></span>${KIND_TEXT[kind].join(' · ')}`;
     $('i-poly').textContent = F.polynomialText(a, b, c);
-    $('i-coef').textContent = tupleText(coef);
-    $('i-delta').textContent = `Δ = ${minus(d)}`;
+    $('i-coef').textContent = tupleText(e);
+    $('i-delta').textContent = `Δ = ${minus(D)}`;
     $('i-root-label').textContent = kind === 'exterior' ? 'roots' : 'root';
-    $('i-root').textContent = F.rootText(a, b, c);
-    $('i-compact').textContent = `Δ = ${minus(d)} · ${F.rootText(a, b, c)}`;
-    $('i-note').textContent = this.notes(coef, kind, d).join(' ');
+    $('i-root').textContent = root;
+    $('i-compact').textContent = `Δ = ${minus(D)} · ${root}`;
+    $('i-note').textContent = this.notes(e, kind, D).join(' ');
     const acts = $('i-actions');
     acts.replaceChildren();
     if (!preview) {
@@ -53,23 +63,24 @@ export class Inspector {
     }
     const moved = state.g.some((x, i) => Math.abs(x - G.identity[i]) > 1e-9) && d < 0;
     $('i-g-label').hidden = $('i-g').hidden = !moved;
-    if (moved) $('i-g').textContent = `g·root ≈ ${complexText(G.act(state.g, F.upperRoot(a, b, c)))}`;
+    if (moved) $('i-g').textContent = `g·root ≈ ${complexText(G.act(state.g, F.upperRoot(...e.map(Number))))}`;
   }
-  notes(coef, kind, d) {
-    const [a, b, c] = coef, k = F.content(a, b, c), out = [];
-    if (k > 1) out.push(`${k} × ${tupleText([a / k, b / k, c / k])}: same root, ${k} times farther from the origin, so ${k * k} times dimmer.`);
+  /** Sentences about the exact label `coef` (BigInts) of kind `kind` and discriminant `D`. */
+  notes(coef, kind, D) {
+    const [a, b, c] = coef, k = F.content(a, b, c), out = [], d = Number(D);
+    if (k > 1n) out.push(`${k} × ${tupleText([a / k, b / k, c / k])}: same root, ${k} times farther from the origin, so ${k * k} times dimmer.`);
     if (kind === 'upper') {
       // Orbits of stars on Δ = d: h(d) primitive ones, and f times each primitive orbit of discriminant d/f².
       const classes = F.shellClasses(-d), h = classes.filter(c => c.content === 1).length, n = classes.length;
-      out.push(k === 1
-        ? `In one of the h(${minus(d)}) = ${h} primitive SL₂(ℤ)-orbits of stars on Δ = ${minus(d)}${n > h ? `, which has ${n} orbits counting multiples` : ''}.`
-        : `In ${k} times the orbit of ${tupleText([a / k, b / k, c / k])}: one of the ${n} orbits of stars on Δ = ${minus(d)}, of which h(${minus(d)}) = ${h} are primitive.`);
+      out.push(k === 1n
+        ? `In one of the h(${minus(D)}) = ${h} primitive SL₂(ℤ)-orbits of stars on Δ = ${minus(D)}${n > h ? `, which has ${n} orbits counting multiples` : ''}.`
+        : `In ${k} times the orbit of ${tupleText([a / k, b / k, c / k])}: one of the ${n} orbits of stars on Δ = ${minus(D)}, of which h(${minus(D)}) = ${h} are primitive.`);
     }
     const plane = this.state.plane;
     if (kind === 'exterior') {
       // A hover preview of a dust point does not draw its plane; only selecting it does.
-      const [A, B, C] = plane?.normal ?? [0, 0, 0];
-      const drawn = plane && A * b - B * a === 0 && B * c - C * b === 0 && A * c - C * a === 0;
+      const [A, B, C] = (plane?.normal ?? [0, 0, 0]).map(BigInt);
+      const drawn = plane && A * b - B * a === 0n && B * c - C * b === 0n && A * c - C * a === 0n;
       out.push(drawn ? 'Its plane is drawn: the geodesic between its roots.' : 'Select it to draw its plane: the geodesic between its roots.');
     }
     if (plane && kind !== 'exterior' && Pl.onPlane(plane.normal, coef)) out.push(`On the plane ${Pl.planeEquation(plane.normal)}.`);
