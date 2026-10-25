@@ -174,3 +174,16 @@ test('planeThrough takes the primitive normal exactly, and refuses one past 2⁵
   assert.ok(P.planeThrough([108103307, -80, 47636247], [210664668, 594, 196956571]).error);
   assert.ok(P.planeFromNormal([1n, 2n ** 60n, 1n]).error);
 });
+
+test('boundaryPoint stays on the circle for every t, however large', () => {
+  for (const t of [0, 0.5, -1, 1, 2, -3.7, 1e10, 1e150]) {
+    const [u, v] = M.boundaryPoint(t), d = 1 + t * t;
+    close(u, (2 * t) / d, 1e-15); close(v, (t * t - 1) / d, 1e-15);
+  }
+  // Past √MAX_VALUE ≈ 1.34e154, t² overflows and the direct formula gave [0, NaN].
+  for (const t of [1.3407807929942597e154, 1e155, -1e300, Number.MAX_VALUE]) {
+    const [u, v] = M.boundaryPoint(t);
+    close(u * t, 2, 1e-12); assert.equal(v, 1);
+  }
+  assert.deepEqual(M.boundaryPoint(Infinity), [0, 1]);
+});
