@@ -107,11 +107,12 @@
 
   <section id="settings" class="glass sheet" hidden aria-label="Settings">
     <h3>Settings</h3>
-    <label>Stars <select id="s-depth">
-      <option value="24">fewer (a + c ≤ 24)</option>
-      <option value="40" selected>a + c ≤ 40</option>
-      <option value="57">her full sky (a + c ≤ 57)</option>
-      <option value="80">dense (a + c ≤ 80)</option>
+    <label title="Stars whose depth a + c in the current picture is under the bound, fading out over its last 14% as in Stange's viewer.">Stars <select id="s-depth">
+      <option value="24">fewer (a + c &lt; 24)</option>
+      <option value="40" selected>a + c &lt; 40</option>
+      <option value="48">her default (a + c &lt; 48)</option>
+      <option value="57">a + c &lt; 57</option>
+      <option value="80">dense (a + c &lt; 80)</option>
     </select></label>
     <label>Stars drawn as <select id="s-style">
       <option value="1" selected>points: brightness = weight</option>

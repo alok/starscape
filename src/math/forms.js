@@ -190,7 +190,10 @@ export function shellClasses(k) {
   return out;
 }
 
-/** Number of upper-interior stars with a + c ≤ depth (her viewer reports 98,696 at depth 48). */
+/**
+ * Number of upper-interior stars with a + c ≤ depth. Her viewer prints 98,696 beside "a + c ≤ 48": that is the count
+ * of her catalogue, padded to ⌊1.2 · 48⌋ = 57 for dragging; she draws a + c < 48, fading from 41.
+ */
 export function starCount(depth) {
   let n = 0;
   for (let a = 1; a < depth; a++) for (let c = 1; c <= depth - a; c++) {
