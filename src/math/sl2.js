@@ -103,8 +103,9 @@ export function nearestIntegral(g) {
     if (!(Number.isFinite(w.x) && w.y > 0 && Number.isFinite(w.y) && Math.abs(w.x) <= 2 ** 20)) return null;
     const n = Math.round(w.x);
     if (n) { w = { x: w.x - n, y: w.y }; m = multiply([1, -n, 0, 1], m); }
-    if (w.x * w.x + w.y * w.y < 1 - 1e-12) { w = act(S, w); m = multiply(S, m); } else { reduced = true; break; }
+    // Checked after each translation, including the last; S only permutes and negates m's entries.
     if (m.some(x => Math.abs(x) > 2 ** 20)) return null;
+    if (w.x * w.x + w.y * w.y < 1 - 1e-12) { w = act(S, w); m = multiply(S, m); } else { reduced = true; break; }
   }
   if (!reduced) return null;
   const gamma = inverse(m), candidates = [gamma, multiply(gamma, S)];

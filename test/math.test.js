@@ -128,3 +128,18 @@ test('interpolate runs from g0 to g1', () => {
   const m = G.geodesicPoint(z0, z1, 0.5);
   close(G.hyperbolicDistance(z0, m), G.hyperbolicDistance(m, z1), 1e-9);
 });
+
+test('snap: nearestIntegral declines a γ with an entry past 2²⁰, the last translation included', () => {
+  assert.deepEqual(G.nearestIntegral([1, 2 ** 20, 0, 1]), [1, 2 ** 20, 0, 1]);
+  assert.equal(G.nearestIntegral([1, 2 ** 20 + 1, 0, 1]), null);
+  // g·i ≈ 1.615 + 5.9e-8 i: four short steps, then a final translation by −50001 lifts an entry to 1050034.
+  assert.equal(G.nearestIntegral([1962.6200789826382, 6344.253340519605, 1214.955098629434, 3927.394825725361]), null);
+  // Far out, where about one release in five used to slip past the guard.
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 2000; i++) {
+    const y = 10 ** (-12 + 2 * rnd()), s = Math.sqrt(y), th = Math.PI * (2 * rnd() - 1);
+    const g = G.multiply([s, (6 * rnd() - 3) / s, 0, 1 / s], G.rotationAboutI(th)), gamma = G.nearestIntegral(g);
+    if (gamma) assert.ok(G.isIntegral(gamma) && gamma.every(x => Math.abs(x) <= 2 ** 20), `${gamma}`);
+  }
+});
