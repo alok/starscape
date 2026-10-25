@@ -91,51 +91,88 @@ export function squarePart(n) {
 }
 
 /**
- * Lattice points for the scene, packed for the GPU:
- *  - every nonzero triple in the display ball X²+Y²+Z² ≤ ball² (all four kinds; the "dust"),
- *  - plus every upper-interior triple (Δ<0, a>0) with depth a+c ≤ depth (the stars, as in Stange's viewer),
- *  - plus every upper-cone triple (Δ=0, a>0) with a+c ≤ depth: the double-root forms k(qx − p)², whose half-plane
- *    pictures are the Ford circles (p² + q² ≤ depth/k).
+ * The points a scene draws: stars and the upper cone by depth, everything else by a ball. `deep` says which test a
+ * point takes. The upper cone (Δ = 0, a + c > 0) goes with the stars it bounds; a + c > 0 is the future nappe, which
+ * SL₂(ℝ) preserves, so a point never changes test as the sky moves.
+ */
+export const deep = (a, b, c) => (a > 0 && b * b < 4 * a * c) || (b * b === 4 * a * c && a + c > 0);
+
+/**
+ * Depth of a form seen from the point x + iy of the root picture: the a + c of its image under any h ∈ SL₂(ℝ) with
+ * h·(x + iy) = i, namely y·a + f(x)/y. It is ℓ·(a, b, c) for ℓ = (y + x²/y, x/y, 1/y), with ℓ_a·ℓ_c − ℓ_b² = 1.
+ * For a star it is √|Δ|·cosh d(root, x + iy), so it bounds a hyperbolic disk around the viewpoint.
+ */
+export const depthFrom = (x, y, a, b, c) => y * a + (a * x * x + b * x + c) / y;
+
+/**
+ * The lattice points a scene needs around the viewpoint x + iy, packed for the GPU. Seen from there a form has depth
+ * Y′ = depthFrom(x, y, …) and display length |v′|² = Δ + 2Y′² (since X′² + Z′² − Y′² = Δ), so the catalogue is
+ *  - every star (Δ < 0, a > 0) with Y′ ≤ depth,
+ *  - every upper-cone form k(qx − p)² (Δ = 0, a + c > 0) with Y′ ≤ depth: its half-plane picture is a Ford circle.
+ *    Only k ≤ depth is kept; that bites only high in a cusp, where (0, 0, k) has Y′ = k/y and would be unbounded,
+ *  - every other nonzero point with |v′| ≤ ball (the "dust"), at most maxDust of them (again only a cusp can reach it).
+ * At x + iy = i this is the old fixed crop: stars and cone with a + c ≤ depth, the rest in the display ball.
+ *
+ * Each loop solves its bound for the next coefficient, so the work is proportional to the output. In the moved
+ * coordinates a′ = y·a, b′ = b + 2x·a, c′ = f(x)/y (an SL₂(ℝ) image, so b′² − 4a′c′ = Δ) the bounds read as at i:
+ * a′ + c′ ≤ depth for the stars, and b′² + 2a′² + 2c′² ≤ ball² for the dust.
  * Returns typed arrays: coefficients (Int32, 3 per point), kind code (Uint8), primitive flag (Uint8), and the
  * largest |coefficient|, which bounds the shader's float32 products (see gpuPlaneExact).
  * @returns {{count:number, coefficients:Int32Array, maxCoefficient:number, kinds:Uint8Array, primitive:Uint8Array}}
  */
-export function buildLattice({ ball = 6, depth = 48 } = {}) {
-  const coef = [], kinds = [], prim = [];
-  const push = (a, b, c) => {
-    coef.push(a, b, c);
-    kinds.push(KIND_CODE[kind(a, b, c)]);
-    prim.push(isPrimitive(a, b, c) ? 1 : 0);
+export function catalogue({ x = 0, y = 1, depth = 48, ball = 6, maxDust = 60000 } = {}) {
+  let n = 0, cap = 1 << 16, coef = new Int32Array(3 * cap), kinds = new Uint8Array(cap), prim = new Uint8Array(cap), max = 0;
+  const push = (a, b, c, k, p) => {
+    if (n === cap) {
+      cap *= 2;
+      const grow = (old, m) => { const t = new old.constructor(m * cap); t.set(old); return t; };
+      coef = grow(coef, 3); kinds = grow(kinds, 1); prim = grow(prim, 1);
+    }
+    coef[3 * n] = a; coef[3 * n + 1] = b; coef[3 * n + 2] = c; kinds[n] = k; prim[n] = p; n++;
+    max = Math.max(max, Math.abs(a), Math.abs(b), Math.abs(c));
   };
-  const R = Math.ceil(ball);
-  for (let a = -R; a <= R; a++) for (let b = -R; b <= R; b++) for (let c = -R; c <= R; c++) {
-    if (!a && !b && !c) continue;
-    const Y = a + c, Z = c - a;
-    if (b * b + Y * Y + Z * Z > ball * ball) continue;
-    // Upper points (interior and cone) inside the depth bound are added by the loops below.
-    if (a > 0 && Y <= depth && discriminant(a, b, c) <= 0) continue;
-    push(a, b, c);
+  const eps = 1e-9, D = depth;
+  // Stars: a′ = y·a < D (as c′ > 0), |b′| < 2√(a′(D − a′)), then b²/4a < c ≤ y(D − a′) − a·x² − b·x.
+  for (let a = 1; a * y < D; a++) {
+    const A = a * y, half = 2 * Math.sqrt(A * (D - A)) + eps, mid = -2 * x * a;
+    for (let b = Math.ceil(mid - half); b <= mid + half; b++) {
+      const top = Math.floor(y * (D - A) - a * x * x - b * x + eps);
+      for (let c = Math.floor((b * b) / (4 * a)) + 1; c <= top; c++) push(a, b, c, 0, gcd(gcd(a, b), c) === 1 ? 1 : 0);
+    }
   }
-  // Upper interior: a > 0, c > 0 (since 4ac > b² ≥ 0), a + c ≤ depth, b² < 4ac.
-  for (let a = 1; a < depth; a++) for (let c = 1; c <= depth - a; c++) {
-    const bmax = Math.ceil(2 * Math.sqrt(a * c)) - 1;
-    for (let b = -bmax; b <= bmax; b++) if (b * b < 4 * a * c) push(a, b, c);
+  // Upper cone: k(qx − p)² with gcd(p, q) = 1 has Y′ = k·(y·q² + (qx − p)²/y), so y·q² ≤ D. q = 0 is (0, 0, k).
+  for (let q = 0; y * q * q <= D; q++) {
+    const r = Math.sqrt(y * (D - y * q * q)) + eps;
+    for (let p = q ? Math.ceil(q * x - r) : 1; q ? p <= q * x + r : p === 1; p++) {
+      if (gcd(p, q) !== 1) continue;
+      const kmax = Math.min(D, Math.floor(D / (y * q * q + (q * x - p) ** 2 / y) + eps));
+      for (let k = 1; k <= kmax; k++) push(k * q * q, -2 * k * p * q, k * p * p, 3, k === 1 ? 1 : 0);
+    }
   }
-  // Upper cone: b² = 4ac with a > 0, c ≥ 0, a + c ≤ depth.
-  for (let a = 1; a <= depth; a++) for (let c = 0; a + c <= depth; c++) {
-    const b = Math.round(Math.sqrt(4 * a * c));
-    if (b * b !== 4 * a * c) continue;
-    push(a, b, c);
-    if (b) push(a, -b, c);
+  // Dust: b′² + 2a′² + 2c′² ≤ ball², less the points the loops above hold already.
+  const r2 = ball * ball + eps;
+  let dust = 0;
+  for (let a = Math.ceil(-ball / (Math.SQRT2 * y)); a * y * Math.SQRT2 <= ball; a++) {
+    const ra = r2 - 2 * (a * y) ** 2, mid = -2 * x * a, sa = Math.sqrt(Math.max(0, ra));
+    for (let b = Math.ceil(mid - sa); b <= mid + sa; b++) {
+      const rb = ra - (b + 2 * x * a) ** 2;
+      if (rb < 0) continue;
+      const sc = y * Math.sqrt(rb / 2), base = -a * x * x - b * x;
+      for (let c = Math.ceil(base - sc); c <= base + sc; c++) {
+        if (!a && !b && !c) continue;
+        const d = b * b - 4 * a * c, k = content(a, b, c);
+        // The same comparisons as the loops above, so a deep point is taken exactly once.
+        if (deep(a, b, c) && (d < 0 ? c <= y * (D - a * y) - a * x * x - b * x + eps : k <= D && k <= (D * k) / depthFrom(x, y, a, b, c) + eps)) continue;
+        if (dust++ >= maxDust) break;
+        push(a, b, c, d === 0 ? 3 : d > 0 ? 2 : a > 0 ? 0 : 1, k === 1 ? 1 : 0);
+      }
+    }
   }
-  return {
-    count: kinds.length,
-    coefficients: Int32Array.from(coef),
-    maxCoefficient: coef.reduce((m, x) => Math.max(m, Math.abs(x)), 0),
-    kinds: Uint8Array.from(kinds),
-    primitive: Uint8Array.from(prim),
-  };
+  return { count: n, coefficients: coef.slice(0, 3 * n), maxCoefficient: max, kinds: kinds.slice(0, n), primitive: prim.slice(0, n) };
 }
+
+/** The catalogue seen from i: stars and the upper cone with a + c ≤ depth, the rest in the display ball. */
+export const buildLattice = ({ ball = 6, depth = 48 } = {}) => catalogue({ depth, ball });
 
 /**
  * Every positive definite form of discriminant −k up to SL₂(ℤ), one reduced representative per orbit. ρ(g) and its
