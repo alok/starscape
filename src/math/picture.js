@@ -58,7 +58,8 @@ export function stageAt(a, b, c, rho, morph, opts) {
   const { kind, hidden, stages: st } = stages(a, b, c, rho, opts), m = Math.min(3, Math.max(0, morph));
   const i = m <= 1 ? 0 : m <= 2 ? 1 : 2, f = m - i;
   const [Pa, ra, La] = st[i], [Pb, rb, Lb] = st[i + 1];
-  const mix = (u, v) => u.map((x, j) => x + (v[j] - x) * f);
-  const root = mix(Pa, Pb), radius = ra + (rb - ra) * f, lift = mix(La, Lb);
+  // At a stage itself, take it as is: x + (v − x)·1 rounds to 0 when the lattice point x is huge (a much-relabeled star).
+  const mix = (u, v) => (f === 0 ? u : f === 1 ? v : u.map((x, j) => x + (v[j] - x) * f));
+  const root = mix(Pa, Pb), radius = f === 1 ? rb : ra + (rb - ra) * f, lift = mix(La, Lb);
   return { position: root.map((x, j) => x + lift[j] * radius), root, lift, radius, kind, hidden: hidden && m > 2 };
 }

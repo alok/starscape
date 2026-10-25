@@ -128,8 +128,10 @@ export class RootsPane {
   /** Draw the stars into the pane's viewport with the shared renderer (scissored). */
   render(renderer, scene) {
     const { rect, camera, world, H } = this, v = this.view(), aspect = rect.w / rect.h;
-    const s = world.scale.y;
-    camera.left = -v.half * aspect * s; camera.right = v.half * aspect * s; camera.top = v.half * s; camera.bottom = -v.half * s;
+    // Inside, the world is mirrored in X (so the disk reads in standard orientation from within); mirror the pane's
+    // projection with it, or the stars land at −x while the overlays, rings and picking put them at +x.
+    const s = world.scale.y, flip = Math.sign(world.scale.x) || 1;
+    camera.left = -flip * v.half * aspect * s; camera.right = flip * v.half * aspect * s; camera.top = v.half * s; camera.bottom = -v.half * s;
     // Look up at the screen from below, as the eye at the origin does: then +X is right and +Z (toward ∞) is up,
     // the usual orientation of the half-plane. From above, the picture would be mirrored.
     camera.up.set(0, 0, 1);

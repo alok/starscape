@@ -59,9 +59,11 @@ export class Inspector {
     $('i-delta').textContent = `Δ = ${minus(D)}`;
     $('i-root-label').textContent = kind === 'exterior' ? 'roots' : 'root';
     $('i-root').textContent = root;
-    // Which orbit a star is in, how deep it lies (the Stars setting bounds a + c), and a dust point's own plane.
+    // Which orbit a star is in, how deep it lies, and a dust point's own plane. The Stars setting bounds the depth in
+    // the current picture, a′ + c′ after ρ(g), which is a + c only at g = 1: away from it, add the depth seen from here.
+    const away = state.g.some((x, i) => Math.abs(x - G.identity[i]) > 1e-9), w = G.act(G.inverse(state.g), { x: 0, y: 1 });
     row('i-class', F.classText(a, b, c));
-    row('i-depth', kind === 'upper' ? String(a + c) : null);
+    row('i-depth', kind !== 'upper' ? null : away ? `${a + c} · here ≈ ${F.depthFrom(w.x, w.y, ...e.map(Number)).toFixed(1)}` : String(a + c));
     row('i-plane', kind === 'exterior' ? Pl.planeEquation(Pl.primitiveBig(e)) : null);
     $('i-compact').textContent = `Δ = ${minus(D)} · ${root}`;
     $('i-note').textContent = this.notes(e, kind, D).join(' ');

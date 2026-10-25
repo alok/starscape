@@ -164,6 +164,8 @@ body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels {
   #dock { top: max(14px, env(safe-area-inset-top)); bottom: auto; max-width: calc(100vw - 230px); }
   .morph { width: 180px; }
   #inspector { top: 82px; max-height: calc(100dvh - 96px); overflow: auto; }
+  /* Beside the pane the dock wraps to two rows (down to about 162 px): the card starts below it. */
+  body.split #inspector { top: 172px; max-height: calc(100dvh - 186px); }
   .sheet { bottom: auto; top: 82px; }
 }
 /* Narrow screens: the tour becomes a bottom sheet, the dock sits above it. */
