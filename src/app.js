@@ -312,6 +312,7 @@ function setG(g) {
   stars.setG(g);
   dirty = true;
   updateReadout();
+  inspector.track();
 }
 function stepGAnimation(dt) {
   if (!gAnim) return false;
@@ -344,7 +345,8 @@ function absorb() {
   stars.absorb(gamma);   // the buffer's points get the same new labels, so nothing on screen changes
   setG([...G.identity]);
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selectedExact)}` : `γ = ${matrixText(gamma)}`);
-  if (!inspector.el.hidden) inspector.show(state.selected);
+  if (inspector.el.classList.contains('preview')) inspector.show(state.hovered, { preview: true });
+  else if (!inspector.el.hidden) inspector.show(state.selected);
 }
 /** With Snap on, glide an off-lattice g to the nearest γ and relabel by it; not inside, where g is where you stand. */
 function settle() {
@@ -538,8 +540,9 @@ function pairWith(coef) {
   dirty = true;
 }
 function lookAtStar(coef) {
-  // Placed through the catalogue's frame, as the ring is: far from i, ρ(g) on the app's label cancels.
-  const v = new THREE.Vector3(...G.apply3(stars.relative(state.g), F.toDisplay(...stars.framed(coef))));
+  // Where the star is drawn in the picture the Origin view will show (leaving Inside sets the Klein picture), placed
+  // through the catalogue's frame as the ring is: far from i, ρ(g) on the app's label cancels.
+  const v = new THREE.Vector3(...stars.stageOf(coef, state.g, rig.mode === 'inside' ? 1 : tw.get('morph')).position);
   if (v.y < 0) v.negate();
   v.normalize();
   goOrigin({ pitch: Math.min(Math.asin(Math.min(1, v.y)), Math.PI / 2 - 1e-4), yaw: Math.atan2(-v.x, -v.z), fov: 70 });

@@ -59,11 +59,8 @@ export class Inspector {
     $('i-delta').textContent = `Δ = ${minus(D)}`;
     $('i-root-label').textContent = kind === 'exterior' ? 'roots' : 'root';
     $('i-root').textContent = root;
-    // Which orbit a star is in, how deep it lies, and a dust point's own plane. The Stars setting bounds the depth in
-    // the current picture, a′ + c′ after ρ(g), which is a + c only at g = 1: away from it, add the depth seen from here.
-    const away = state.g.some((x, i) => Math.abs(x - G.identity[i]) > 1e-9), w = G.act(G.inverse(state.g), { x: 0, y: 1 });
+    // Which orbit a star is in, how deep it lies (see track), and a dust point's own plane.
     row('i-class', F.classText(a, b, c));
-    row('i-depth', kind !== 'upper' ? null : away ? `${a + c} · here ≈ ${F.depthFrom(w.x, w.y, ...e.map(Number)).toFixed(1)}` : String(a + c));
     row('i-plane', kind === 'exterior' ? Pl.planeEquation(Pl.primitiveBig(e)) : null);
     $('i-compact').textContent = `Δ = ${minus(D)} · ${root}`;
     $('i-note').textContent = this.notes(e, kind, D).join(' ');
@@ -75,7 +72,19 @@ export class Inspector {
       if (state.plane) acts.append(button('Clear plane', () => this.actions.clearPlane()));
       if (state.shellK) acts.append(button('Clear shell', () => this.actions.clearShell()));
     }
-    const moved = state.g.some((x, i) => Math.abs(x - G.identity[i]) > 1e-9) && d < 0;
+    this.shown = { e, kind, d };
+    this.track();
+  }
+  /**
+   * The rows that follow g, kept current while the sky moves under an open card: where g has moved the root, and the
+   * depth the Stars setting bounds, which is a′ + c′ in the current picture (a + c itself only at g = 1).
+   */
+  track() {
+    if (this.el.hidden || !this.shown) return;
+    const { state } = this, { e, kind, d } = this.shown, [a, , c] = e;
+    const away = state.g.some((x, i) => Math.abs(x - G.identity[i]) > 1e-9), w = G.act(G.inverse(state.g), { x: 0, y: 1 });
+    row('i-depth', kind !== 'upper' ? null : away ? `${a + c} · here ≈ ${F.depthFrom(w.x, w.y, ...e.map(Number)).toFixed(1)}` : String(a + c));
+    const moved = away && d < 0;
     $('i-g-label').hidden = $('i-g').hidden = !moved;
     if (moved) $('i-g').textContent = `g·root ≈ ${complexText(G.act(state.g, F.upperRoot(...e.map(Number))))}`;
   }
@@ -98,7 +107,10 @@ export class Inspector {
       // A hover preview of a dust point does not draw its plane; only selecting it does.
       const [A, B, C] = (plane?.normal ?? [0, 0, 0]).map(BigInt);
       const drawn = plane && A * b - B * a === 0n && B * c - C * b === 0n && A * c - C * a === 0n;
-      out.push(drawn ? 'Its plane is drawn: the geodesic between its roots.' : 'Select it to draw its plane: the geodesic between its roots.');
+      const sel = this.state.selected && exactLabel(this.state.selected, this.state), chosen = sel && sel.every((x, i) => x === coef[i]);
+      out.push(drawn ? 'Its plane is drawn: the geodesic between its roots.'
+        : chosen ? 'Its plane is not drawn now (cleared, or Inside, where dust is hidden).'
+        : 'Select it to draw its plane: the geodesic between its roots.');
     }
     if (plane && kind !== 'exterior' && Pl.onPlane(plane.normal, coef)) {
       out.push(`On the plane ${Pl.planeEquation(plane.normal)}: the geodesic with ends ${F.rootText(...plane.normal)}.`);
