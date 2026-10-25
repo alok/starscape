@@ -86,10 +86,13 @@ export class CuttingSequence {
  * Flatlander judges distance; without it every direction would end on some faint star (Olbers' paradox in 2D).
  */
 export function flatlandRetina(stars, g, { width = 720, r0 = 0.5, fog = 1.0, beta = 1, palette } = {}) {
-  const n = stars.lattice.count, rho = G.displayPushforward(g), hits = [], shell = stars.uniforms.uShell.value;
+  // The buffer's own labels through ρ(g·γ⁻¹), as the shader draws them: far from i the app's labels are huge and ρ(g)
+  // cancels them in floating point. Δ, primitivity and the shell are SL₂(ℤ)-invariant, so the frame's labels give them.
+  const n = stars.lattice.count, rho = stars.relative(g), co = stars.lattice.coefficients, hits = [];
+  const shell = stars.uniforms.uShell.value;
   for (let i = 0; i < n; i++) {
     if (stars.lattice.kinds[i] !== 0 || !stars.visible(i)) continue;
-    const [a, b, c] = stars.coefficients(i);
+    const a = co[3 * i], b = co[3 * i + 1], c = co[3 * i + 2];
     if (!stars.lattice.primitive[i]) continue;   // multiples share the point
     // A shown shell only dims the sky's other stars, but a Flatlander sees just the shell (one star hides the next).
     if (shell > 0.5 && Math.abs(4 * a * c - b * b - shell) >= 0.5) continue;

@@ -231,7 +231,8 @@ function updateSelectionMarker() {
 function updatePlaneView() {
   if (!state.plane) { planeView.visible = false; return; }
   // The plane's normal moves like a form, n′ = ρ(g)n; its Euclidean display normal flips the Y sign.
-  const nd = G.apply3(G.displayPushforward(state.g), F.toDisplay(...state.plane.normal)), m = tw.get('morph');
+  // Through the catalogue's frame, as the stars are drawn: far from i the normal's labels are large and ρ(g) cancels.
+  const nd = G.apply3(stars.relative(state.g), F.toDisplay(...stars.framed(state.plane.normal))), m = tw.get('morph');
   // On the screen disk (morph ≥ ½, or the lattice with the screen shown, which sits exactly at a + c = H) the plane
   // meets the sky in a chord: the 3D side of the pane's geodesic.
   const chord = (m >= 0.5 || tw.get('screen') > 0.3) && m <= 1.5
@@ -530,7 +531,10 @@ function pairWith(coef) {
   dirty = true;
 }
 function lookAtStar(coef) {
-  const v = new THREE.Vector3(...G.apply3(G.displayPushforward(state.g), F.toDisplay(...coef)));
+  // Placed through the catalogue's frame, as the ring is. Leaving Inside settles g onto the lattice (goOrigin), and the
+  // star then sits where ρ(γ) puts it, so aim there.
+  const settling = rig.mode === 'inside' && state.snap;
+  const v = new THREE.Vector3(...G.apply3(stars.relative((settling && G.nearestIntegral(state.g)) || state.g), F.toDisplay(...stars.framed(coef))));
   if (v.y < 0) v.negate();
   v.normalize();
   goOrigin({ pitch: Math.min(Math.asin(Math.min(1, v.y)), Math.PI / 2 - 1e-4), yaw: Math.atan2(-v.x, -v.z), fov: 70 });
