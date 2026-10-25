@@ -4,6 +4,8 @@
 
 **[Open Starscape](https://alok.blog/starscape/)**. It runs in any modern browser. On a headset it offers **Enter VR**.
 
+**[Watch the tour](https://youtu.be/HK67q3lK2Jk)**: two and a half minutes, silent and captioned, recorded from the live app.
+
 ![The sky seen from the zero polynomial (Klein model), beside the same stars in the upper half-plane](assets/og.png)
 
 This is an independent implementation inspired by **Katherine E. Stange**’s [Starscape / Lattice viewer](https://www.katestange.net/starscape-lattice/) and her talk [Illustrating Mathematics](https://katestange.net/talks/math-exploration/). The mathematics is from **Edmund Harriss, Katherine E. Stange and Steve Trettel**, [*Algebraic Number Starscapes*](https://arxiv.org/abs/2008.07655) (§4.2). The L/R coding of geodesics is due to **Caroline Series**, [*The Modular Surface and Continued Fractions*](https://doi.org/10.1112/jlms/s2-31.1.69) (1985). No code or media from the original viewer is included.
@@ -44,6 +46,7 @@ python3 scripts/serve.py 8848     # then open http://127.0.0.1:8848
 node --test test/                 # the mathematics: fixtures, invariants, Farey/Δ = 1, walking, float32
 node scripts/shoot.mjs "http://127.0.0.1:8848/#c=5" phone.png --size 390x844 --mobile   # true phone screenshot
 node scripts/film.mjs scripts/reel.mjs tour.mp4 --fps 60 --scale 2 --out 1920x1080       # the demo video, frame by frame
+node scripts/cut.mjs tour.mp4 highlights.mp4                                              # its highlights, crossfaded
 node scripts/xrshot.mjs "http://127.0.0.1:8848/#c=1" xr.png                              # inside an emulated Quest 3 (IWER)
 ```
 
@@ -60,7 +63,8 @@ src/ui/       chapters (the tour), xr (WebXR)
 lean/         the Lean 4 version: kernel-checked identities and an exact data bridge
 lean-float/   on FloatLib: the shader's float32 Δ and plane test are exact (where it matters, with a runtime guard)
 scripts/      no-cache dev server; headless screenshots at exact device sizes, and inside an emulated headset
-              (xrshot.mjs); a deterministic video recorder (film.mjs) and the demo reel it plays (reel.mjs)
+              (xrshot.mjs); a deterministic video recorder (film.mjs), the demo reel it plays (reel.mjs) and
+              its highlights cut (cut.mjs)
 ```
 
 ## What is checked, and how
