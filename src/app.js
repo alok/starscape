@@ -621,8 +621,12 @@ function setEye(h) { rig.setEye(h); $('eye').value = String(h); hud.eyeLabel(); 
 // ---------------------------------------------------------------------------------------------------------------
 // The tour
 
+let sceneSelect;
 function applyScene(s) {
-  if (s.view === 'inside') { goInside(s.pose ?? {}); if (s.select) setTimeout(() => select(s.select, { quiet: true }), 320); return; }
+  // The previous scene's glide or delayed selection must not land in this one: a T still gliding would relabel the
+  // selection this chapter is about to set by a γ from the last.
+  gAnim = null; clearTimeout(sceneSelect);
+  if (s.view === 'inside') { goInside(s.pose ?? {}); if (s.select) sceneSelect = setTimeout(() => select(s.select, { quiet: true }), 320); return; }
   if (s.view === 'origin') goOrigin({ ...(s.pose ?? {}), leanArr: s.lean });
   // A phone has no roots pane beside the 3D view, so a chapter can ask to face its picture there instead.
   else if (s.view === 'outside') goOutside((narrow.matches && s.phonePose) || s.pose || {});
