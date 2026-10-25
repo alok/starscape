@@ -39,6 +39,11 @@ test('polynomial and root text', () => {
   assert.equal(F.rootText(1, -1, -1), '(1 ± √5)/2');
   assert.equal(F.rootText(4, -4, 1), '1/2 (double)');
   assert.equal(F.rootText(0, 1, 2), '−2 and ∞');
+  // A constant c is the binary form c·y², with a double root at ∞, as the card's "a double root" says.
+  for (const c of [1, -3, 4]) {
+    assert.equal(F.rootText(0, 0, c), '∞ (double)');
+    assert.deepEqual(F.realRoots(0, 0, c), [Infinity, Infinity]);
+  }
 });
 
 test('Δ, kind and root text stay exact past 2⁵³', () => {

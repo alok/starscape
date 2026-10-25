@@ -60,7 +60,7 @@ export function upperRoot(a, b, c) {
 export function realRoots(a, b, c) {
   const d = discriminant(a, b, c);
   if (d < 0) return null;
-  if (a === 0) return b === 0 ? [] : [-c / b, Infinity];
+  if (a === 0) return b === 0 ? (c === 0 ? [] : [Infinity, Infinity]) : [-c / b, Infinity];
   const s = Math.sqrt(d);
   return [(-b - s) / (2 * a), (-b + s) / (2 * a)].sort((x, y) => x - y);
 }
@@ -73,7 +73,8 @@ export function rootText(a, b, c) {
   [a, b, c] = [a, b, c].map(BigInt);
   const d = b * b - 4n * a * c;
   if (a === 0n) {
-    if (b === 0n) return c === 0n ? 'every x' : 'none';
+    // c·y² vanishes only at [1 : 0] = ∞, to second order.
+    if (b === 0n) return c === 0n ? 'every x' : '∞ (double)';
     return fraction(-c, b) + ' and ∞';
   }
   if (a < 0n) [a, b, c] = [-a, -b, -c];
