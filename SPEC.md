@@ -64,10 +64,12 @@ src/views/    outside (orbit), origin (eye at 0), inside (egocentric)
 src/ui/       chapters, inspector, controls, xr
 ```
 
-A single `THREE.Points` buffer holds every lattice point (integer a,b,c as
-attributes). Uniforms carry ρ(g) in display coordinates, the morph parameter
-(lattice → Klein screen → Poincaré → half-plane) and the eye position, so
-dragging, morphing and moving cost nothing on the CPU.
+A single `THREE.Points` buffer holds the lattice points near the current
+viewpoint (integer a,b,c as attributes): a catalogue re-enumerated in a worker
+as the sky moves, decided in the picture (depth a′ + c′ after ρ(g)), so the
+drawn sky is SL₂(ℤ)-invariant. Uniforms carry ρ(g) in display coordinates, the
+morph parameter (lattice → Klein screen → Poincaré → half-plane) and the eye
+position, so dragging, morphing and moving cost almost nothing on the CPU.
 
 ## Resolved (from Dots, 2026-10-24 02:16–02:18)
 

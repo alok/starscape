@@ -38,7 +38,7 @@ export const CHAPTERS = [
   {
     eyebrow: 'IV · the Klein model',
     title: 'Your sky is the hyperbolic plane',
-    body: `<p>Slide every star along its line of sight onto the screen ${m('a + c = 4')}. From your eye nothing changes. The disk you now see is the Klein model of the hyperbolic plane (§4.2.4).</p>
+    body: `<p>Slide every star along its line of sight onto the screen ${m('a + c = 4')}. From your eye nothing moves; only the multiples hidden behind each star fade, since a point of this picture is a root. The disk you now see is the Klein model of the hyperbolic plane (§4.2.4).</p>
 <p>A plane through your eye is seen edge-on, as a line. That is why geodesics are <em>straight</em> in the Klein model. The form ${m('x² − 1')}, with real roots ±1, cuts the plane ${m('2a − 2c = 0')}. You see it as a chord from −1 to 1, threading every star with ${m('a = c')}: the roots on the unit circle, like ${m('i')} (ringed).</p>`,
     scene: { view: 'origin', pose: { pitch: Math.PI / 2 - 1e-4, yaw: 0, fov: 96 }, lean: [0, 0, 0], morph: 1, depth: 'deep',
       alpha: { upper: 1, lower: 0, exterior: 0, null: 0.9 }, cone: true, screen: true, plane: [1, 0, -1], select: [1, 0, 1] },

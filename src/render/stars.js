@@ -13,14 +13,28 @@
 //
 // Sprites conserve energy: below uMinPx a star keeps that size and dims by (px/uMinPx)², so brightness falls
 // like 1/distance² and the simplest numbers, which are nearest the origin, shine brightest.
+//
+// Which points are drawn is decided in the picture, as in Stange's viewer: stars and the upper cone by their depth
+// a′ + c′ after ρ(g), dust by its distance from the origin after ρ(g), each fading out over the last 14% of its bound.
+// SL₂(ℤ) maps that set onto itself, so a snap lands the sky on itself and relabeling it changes nothing, and a drag
+// never thins the sky on one side. The buffer is a catalogue of the points near the current viewpoint g⁻¹·i,
+// padded by PAD, and re-enumerated off the main thread whenever the viewpoint drifts from it.
+//
+// The catalogue's coefficients are labels in an integral frame γ: the buffer holds ρ(γ)·f for the app's label f,
+// with γ moving the viewpoint into the standard fundamental domain, so the buffered integers stay small however far
+// you walk (float32 positions stay sharp; Δ and the plane test stay exact, as lean-float proves under such bounds).
+// coefficients(i) gives back the app's label; the shader's ρ is ρ(g·γ⁻¹).
 import * as THREE from 'three';
 import { paletteTexture, kindColors, DELTA_RANGE } from './palette.js';
 import { stageAt } from '../math/picture.js';
+import { catalogue } from '../math/forms.js';
+import * as G from '../math/sl2.js';
+import { gpuArrays } from './pack.js';
 
 const vertexShader = /* glsl */ `
-attribute vec3 coef;
-attribute vec2 meta;
-uniform mat3 uRho;
+attribute vec2 meta;     // kind, primitive; position holds the coefficients (a, b, c) in the catalogue's frame
+uniform mat3 uRho;       // moves the frame's labels into the picture drawn
+uniform mat3 uCull;      // the same for the live sky, which decides what exists (the Inside map draws it at g = 1)
 uniform float uMorph, uH, uHP, uR0, uUnit, uViewportH;
 uniform float uMinPx, uKnee, uMaxPx, uExposure, uHaloPx, uFalloff, uRingMaxPx;
 uniform float uStyle, uPointPx, uBeta;   // style 1: every point the same tiny size; brightness carries the weight
@@ -38,21 +52,31 @@ varying float vHalo;
 varying float vPoint;
 varying float vRing;   // a null form drawn as a disk is a ring (a horocycle): its drawn radius in px, else 0
 
+// Stange's edge: full strength to 86% of the bound, gone at the bound.
+float edge(float x, float bound) { return 1.0 - smoothstep(0.86 * bound, bound, x); }
+
 void main() {
-  float a = coef.x, b = coef.y, c = coef.z;
+  float a = position.x, b = position.y, c = position.z;
   int kind = int(meta.x + 0.5);
   float delta = b * b - 4.0 * a * c;
   vec3 v0 = vec3(-b, a + c, c - a);
+  float m = clamp(uMorph, 0.0, 3.0);
 
-  // Which points exist in this scene: stars and the upper cone (the Ford circles) by depth, the rest by the ball.
-  bool deep = kind == 0 || (kind == 3 && a > 0.0);
-  float present = deep && uDepth > 0.0 ? (a + c <= uDepth ? 1.0 : 0.0) : (dot(v0, v0) <= uBall * uBall ? 1.0 : 0.0);
-  float alpha = present * uKindAlpha[kind];
-  if (meta.y < 0.5) alpha *= uMultiples;
+  // Which points exist, judged in the live sky: stars and the upper cone (the Ford circles) by depth, the rest by the
+  // ball. a + c > 0 is the future nappe of the cone, which every ρ(g) preserves.
+  vec3 w = uCull * v0;
+  bool deep = kind == 0 || (kind == 3 && a + c > 0.0);
+  float alpha = (deep && uDepth > 0.0 ? edge(w.y, uDepth) : edge(length(w), uBall)) * uKindAlpha[kind];
+  // A root belongs to the class [a : b : c], so as the sky flattens into a picture a star's multiples, which share
+  // its root, fade away (as in Stange's pane) instead of mixing their own colors into it. The null multiples
+  // k(qx − p)² stay: drawn as disks they nest inside their Ford circle.
+  if (meta.y < 0.5) alpha *= uMultiples * (kind == 0 ? 1.0 - smoothstep(0.0, 1.0, m) : 1.0);
+  // The same for the lower nappe: −f has f's root, so in a picture it would only draw the class twice (doubling the
+  // rings at 0 and ±1, tinting stars with the lower cone's color).
+  if (kind != 2 && a + c < 0.0) alpha *= 1.0 - smoothstep(0.0, 1.0, m);
 
   vec3 v = uRho * v0;
   float Y = v.y;
-  float m = clamp(uMorph, 0.0, 3.0);
 
   // Stage positions and radii (display units).
   vec3 P0 = v; float r0 = uR0;
@@ -166,34 +190,42 @@ void main() {
 
 export const KIND = { upper: 0, lower: 1, exterior: 2, null: 3 };
 
-export class StarField {
-  /** @param {{count:number, coefficients:Int32Array, kinds:Uint8Array, primitive:Uint8Array}} lattice */
-  constructor(lattice, { palette = 'spectrum' } = {}) {
-    this.lattice = lattice;
-    const n = lattice.count, coef = new Float32Array(3 * n), meta = new Float32Array(2 * n);
-    for (let i = 0; i < n; i++) {
-      coef[3 * i] = lattice.coefficients[3 * i];
-      coef[3 * i + 1] = lattice.coefficients[3 * i + 1];
-      coef[3 * i + 2] = lattice.coefficients[3 * i + 2];
-      meta[2 * i] = lattice.kinds[i];
-      meta[2 * i + 1] = lattice.primitive[i];
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('coef', new THREE.BufferAttribute(coef, 3));
-    geometry.setAttribute('meta', new THREE.BufferAttribute(meta, 2));
-    // Positions are computed in the shader; a dummy attribute keeps three.js happy and the cloud never culled.
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * n), 3));
-    geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+/** How far past the drawn bounds the catalogue reaches: the viewpoint may drift ln PAD before the edge shows a gap. */
+const PAD = 1.3;
+/** Re-enumerate once the viewpoint is this far (hyperbolic distance) from the catalogue's; well inside ln PAD. */
+const DRIFT = 0.15;
+const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1], I = { x: 0, y: 1 };
+const smoothstep = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+const edge = (x, bound) => 1 - smoothstep(0.86 * bound, bound, x);
 
+/**
+ * γ ∈ SL₂(ℤ) moving z into the standard fundamental domain (|x| ≤ ½, |z| ≥ 1), with γ·z; null if z is out of reach
+ * of exact labels.
+ */
+function reduce(z) {
+  let m = [1, 0, 0, 1];
+  for (let step = 0; step < 100; step++) {
+    if (!(Number.isFinite(z.x) && z.y > 0 && Number.isFinite(z.y)) || m.some(x => Math.abs(x) > 2 ** 24)) return null;
+    const n = Math.round(z.x);
+    if (n) { z = { x: z.x - n, y: z.y }; m = G.multiply([1, -n, 0, 1], m); }
+    if (z.x * z.x + z.y * z.y >= 1 - 1e-12) return { m: m.map(x => x + 0), z };
+    z = G.act(G.S, z); m = G.multiply(G.S, m);
+  }
+  return null;
+}
+
+export class StarField {
+  /** `reach`: the drawn bounds, { depth, ball } (see setReach). */
+  constructor(reach, { palette = 'spectrum' } = {}) {
     this.uniforms = {
-      uRho: { value: new THREE.Matrix3() },
+      uRho: { value: new THREE.Matrix3() }, uCull: { value: new THREE.Matrix3() },
       uMorph: { value: 0 }, uH: { value: 4 }, uHP: { value: 2 }, uR0: { value: 0.12 },
       uUnit: { value: 1 }, uViewportH: { value: 800 },
       uMinPx: { value: 1.1 }, uKnee: { value: 3 }, uMaxPx: { value: 11 }, uExposure: { value: 1 }, uHaloPx: { value: 3 }, uFalloff: { value: 2.4 },
       uRingMaxPx: { value: 48 },
       uStyle: { value: 1 }, uPointPx: { value: 2.5 }, uBeta: { value: 0.55 },
       uKindAlpha: { value: new THREE.Vector4(1, 0.55, 0.45, 0.9) },
-      uDepth: { value: 0 }, uBall: { value: 6 }, uMultiples: { value: 1 },
+      uDepth: { value: 0 }, uBall: { value: reach.ball }, uMultiples: { value: 1 },
       uPlane: { value: new THREE.Vector3() }, uPlaneOn: { value: 0 },
       uShell: { value: 0 },
       uRamp: { value: paletteTexture(palette) },
@@ -206,9 +238,96 @@ export class StarField {
       blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
       blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
     });
-    this.points = new THREE.Points(geometry, material);
+    this.points = new THREE.Points(new THREE.BufferGeometry(), material);
     this.points.frustumCulled = false;
     this.points.renderOrder = 10;
+    this.g = [...G.identity];
+    this.reach = this.padded(reach);
+    this.jobs = 0; this.pending = null;
+    this.onRebuild = null;   // called when a new catalogue replaces the buffer (point indices change)
+    this.setLattice(catalogue({ ...this.reach }), [...G.identity], I);
+    try {
+      this.worker = new Worker(new URL('./catalogue-worker.js', import.meta.url), { type: 'module' });
+      this.worker.onmessage = ({ data }) => { if (data.id === this.pending?.id) this.receive(this.pending, data); };
+      // Without module workers, enumerate on the main thread: a few milliseconds per rebuild.
+      this.worker.onerror = () => { this.worker = null; const job = this.pending; if (job) this.receive(job, catalogue({ x: job.view.x, y: job.view.y, ...job.reach })); };
+    } catch { this.worker = null; }
+  }
+
+  padded({ depth, ball }) { return { depth: Math.ceil(PAD * depth), ball: PAD * ball }; }
+  /** The bounds the scene draws (star depth, dust radius); the catalogue follows them, padded. */
+  setReach(reach) {
+    this.uniforms.uBall.value = reach.ball;
+    const r = this.padded(reach);
+    if (r.depth === this.reach.depth && r.ball === this.reach.ball) return;
+    this.reach = r;
+    this.pending = null;   // a catalogue in flight has the old bounds
+    this.rebase();
+  }
+
+  /** Replace the buffer with catalogue L, whose labels are ρ(frame)·f and whose viewpoint is `view` in that frame. */
+  setLattice(L, frame, view) {
+    const { gpu, meta } = L.gpu ? L : gpuArrays(L), geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(gpu, 3));
+    geometry.setAttribute('meta', new THREE.BufferAttribute(meta, 2));
+    // Positions are computed in the shader; a huge bounding sphere keeps three.js from culling the cloud.
+    geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+    const old = this.points.geometry;
+    this.points.geometry = geometry;
+    old.dispose();
+    this.lattice = L; this.frame = frame; this.view = view;
+    this.setG(this.g);
+  }
+
+  /** The app's g. The shader gets ρ(g·γ⁻¹) for the frame's labels; a drifting viewpoint asks for a new catalogue. */
+  setG(g) {
+    this.g = g;
+    this.rho = G.displayPushforward(g);   // for the app's labels (stage, coefficients)
+    const w = G.act(G.inverse(g), I), here = G.act(this.frame, w), r = reduce(w);
+    let drift = G.hyperbolicDistance(here, this.view);
+    // An integral move needs no new catalogue, only another frame: the catalogue seen from γ·z is ρ(γ) of the one
+    // seen from z. So after a snap, or a cut to T or S, the frame that brings the viewpoint back is free. Either frame
+    // covers the sky drawn, so switching never changes the picture.
+    if (r) {
+      const d = G.hyperbolicDistance(r.z, this.view);
+      if (d <= drift + 1e-12) { this.frame = r.m; drift = d; }
+    }
+    this.rel = G.displayPushforward(G.multiply(g, G.inverse(this.frame)));
+    this.uniforms.uRho.value.set(...this.rel);
+    this.uniforms.uCull.value.set(...this.rel);
+    const identity = g.every((x, j) => x === G.identity[j]);
+    const home = this.frame.every((x, j) => x === G.identity[j]) && this.view.x === 0 && this.view.y === 1;
+    if (home) this.homeward = false;
+    if (!(drift <= DRIFT) || (this.homeward && identity && !home)) this.rebase();
+  }
+  /**
+   * The app relabeled its labels by γ ∈ SL₂(ℤ) (and will set g = 1): the buffer keeps its points under new labels, so
+   * nothing on screen changes. At rest the buffer then goes back to the catalogue seen from i, in the app's labels.
+   */
+  absorb(gamma) {
+    const inv = G.inverse(gamma);
+    this.frame = G.multiply(this.frame, inv);
+    if (this.pending) this.pending.frame = G.multiply(this.pending.frame, inv);
+    this.homeward = true;
+  }
+  /** ρ(g·γ⁻¹): what the shader needs to draw this field at g (the roots pane draws the Inside map at g = 1). */
+  relative(g) { return G.displayPushforward(G.multiply(g, G.inverse(this.frame))); }
+
+  /** Enumerate the catalogue around the current viewpoint, off the main thread when possible. One at a time. */
+  rebase() {
+    if (this.pending) return;
+    // Out of reach of exact labels (dozens of units from i) the sky keeps its last catalogue.
+    const r = reduce(G.act(G.inverse(this.g), I));
+    if (!r) return;
+    const job = { id: ++this.jobs, frame: r.m, view: r.z, reach: { ...this.reach } };
+    this.pending = job;
+    if (this.worker) this.worker.postMessage({ id: job.id, x: job.view.x, y: job.view.y, ...job.reach });
+    else this.receive(job, catalogue({ x: job.view.x, y: job.view.y, ...job.reach }));
+  }
+  receive(job, L) {
+    this.pending = null;
+    this.setLattice(L, job.frame, job.view);
+    this.onRebuild?.();
   }
 
   setPalette(name) {
@@ -216,32 +335,49 @@ export class StarField {
     this.uniforms.uRamp.value = paletteTexture(name);
     this.uniforms.uKindColor.value = kindColors(name);
   }
-  /** ρ(g) in display coordinates, row-major. */
-  setRho(m) { this.uniforms.uRho.value.set(...m); this.rho = m; }
 
+  /** The app's label of point i: the frame's label pulled back by γ⁻¹. */
   coefficients(i) {
-    const c = this.lattice.coefficients;
-    return [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
+    const c = this.lattice.coefficients, f = [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
+    if (this.frame.every((x, j) => x === G.identity[j])) return f;
+    return G.apply3(G.pushforward(G.inverse(this.frame)), f).map(x => x + 0);
   }
+  /** A form in the app's labels relabeled into the frame's (for the shader's exact plane test). */
+  framed(f) { return G.pushforwardExact(this.frame, f).map(Number); }
 
   /** CPU mirror of the shader's position and radius for one triple (display units): src/math/picture.js. */
-  stage(a, b, c, rho = this.rho ?? [1, 0, 0, 0, 1, 0, 0, 0, 1], morph = this.uniforms.uMorph.value) {
+  stage(a, b, c, rho = this.rho ?? I3, morph = this.uniforms.uMorph.value) {
     const u = this.uniforms;
     return stageAt(a, b, c, rho, morph, { H: u.uH.value, HP: u.uHP.value, R0: u.uR0.value, disks: u.uStyle.value < 0.5 });
   }
+  /**
+   * stage() for one of the app's labels at g, computed as the shader does, through the frame. Far from i the app's
+   * labels grow large and ρ(g) cancels them in floating point; the frame's labels and ρ(g·γ⁻¹) stay small.
+   */
+  stageOf(coef, g = this.g, morph = this.uniforms.uMorph.value) { return this.stage(...this.framed(coef), this.relative(g), morph); }
+  /** stage() for buffer point i in the live sky. */
+  stageIndex(i, morph = this.uniforms.uMorph.value) {
+    const c = this.lattice.coefficients;
+    return this.stage(c[3 * i], c[3 * i + 1], c[3 * i + 2], this.rel, morph);
+  }
 
   /**
-   * Is point i drawn with the current filters? Mirrors the shader's `present`, kind alpha and hidden roots at ∞, in the
-   * picture `morph` under `rho`: the 3D view's by default; the roots pane passes its own.
+   * Is point i drawn with the current filters, in a picture at `morph` under `rho` (the 3D view's by default; the roots
+   * pane passes its own)? Mirrors the shader: its edge fades, kind alpha, multiples and roots at ∞ hidden. Which stars
+   * exist is decided by the live sky, as the shader's uCull. A point fading below 5% counts as gone, so faint edges are
+   * not picked.
    */
-  visible(i, morph = this.uniforms.uMorph.value, rho = this.rho) {
-    const u = this.uniforms, [a, b, c] = this.coefficients(i), kind = this.lattice.kinds[i];
-    const X = -b, Y = a + c, Z = c - a, inBall = X * X + Y * Y + Z * Z <= u.uBall.value ** 2;
-    const deep = kind === 0 || (kind === 3 && a > 0);
-    const present = deep && u.uDepth.value > 0 ? Y <= u.uDepth.value : inBall;
+  visible(i, morph = this.uniforms.uMorph.value, rho = this.rel) {
+    const u = this.uniforms, L = this.lattice, kind = L.kinds[i], r = this.rel;
+    const a = L.coefficients[3 * i], b = L.coefficients[3 * i + 1], c = L.coefficients[3 * i + 2];
+    const X0 = -b, Y0 = a + c, Z0 = c - a;
+    const x = r[0] * X0 + r[1] * Y0 + r[2] * Z0, y = r[3] * X0 + r[4] * Y0 + r[5] * Z0, z = r[6] * X0 + r[7] * Y0 + r[8] * Z0;
+    const deep = kind === 0 || (kind === 3 && a + c > 0);
+    const present = deep && u.uDepth.value > 0 ? edge(y, u.uDepth.value) : edge(Math.hypot(x, y, z), u.uBall.value);
     const ka = [u.uKindAlpha.value.x, u.uKindAlpha.value.y, u.uKindAlpha.value.z, u.uKindAlpha.value.w][kind];
-    if (!present || ka < 0.05) return false;
-    if (!this.lattice.primitive[i] && u.uMultiples.value < 0.05) return false;
+    if (present * ka < 0.05) return false;
+    if (!L.primitive[i] && u.uMultiples.value * (kind === 0 ? 1 - smoothstep(0, 1, morph) : 1) < 0.05) return false;
+    if (kind !== 2 && a + c < 0 && 1 - smoothstep(0, 1, morph) < 0.05) return false;
     if (kind === 2 && morph > 0.5) return false;
     if (kind === 3 && this.stage(a, b, c, rho, morph).hidden) return false;
     // A shown shell only dims the stars off it (the shader's emphasis), so they stay pickable.
@@ -253,12 +389,12 @@ export class StarField {
    * (projection · view · lattice group). Returns the index or −1.
    */
   pick(ndcX, ndcY, toClip, viewportH, { radiusPx = 12, aspect = 1 } = {}) {
-    const e = toClip.elements, n = this.lattice.count, rho = this.rho ?? [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    const e = toClip.elements, n = this.lattice.count, rho = this.rel, co = this.lattice.coefficients;
     let best = -1, bestScore = Infinity;
     const halfH = viewportH / 2, fast = this.uniforms.uMorph.value === 0;
     for (let i = 0; i < n; i++) {
       if (!this.visible(i)) continue;
-      const a = this.lattice.coefficients[3 * i], b = this.lattice.coefficients[3 * i + 1], c = this.lattice.coefficients[3 * i + 2];
+      const a = co[3 * i], b = co[3 * i + 1], c = co[3 * i + 2];
       let x, y, z;
       if (fast) {
         const X0 = -b, Y0 = a + c, Z0 = c - a;
@@ -270,7 +406,7 @@ export class StarField {
       const dx = (cx - ndcX) * halfH * aspect, dy = (cy - ndcY) * halfH, d = Math.hypot(dx, dy);
       if (d > radiusPx) continue;
       // Prefer nearer (brighter) stars when several are under the pointer.
-      const score = d + 4 * Math.log(w) + (a < 0 ? 1e-3 : 0);   // ±f coincide in the pictures: prefer a > 0
+      const score = d + 4 * Math.log(w) + (a + c < 0 ? 1e-3 : 0);   // ±f coincide in the pictures: prefer the future nappe
       if (score < bestScore) { bestScore = score; best = i; }
     }
     return best;

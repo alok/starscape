@@ -143,7 +143,8 @@ export class RootsPane {
     // from outside, whatever the 3D view is doing (its own exposure follows its vantage, morph and aspect).
     // Points need the boost; disks do not, except on the Inside map, which was tuned with it.
     u.uExposure.value = this.state.exposure * (this.inside || this.state.style === 1 ? PANE_EXPOSURE : 1);
-    if (this.inside) u.uRho.value.identity();
+    // Inside, the map is the sky at g = 1; which stars exist is still decided around you (uCull).
+    if (this.inside) u.uRho.value.set(...this.stars.relative(G.identity));
     u.uViewportH.value = rect.h * this.dpr;
     const W = renderer.domElement.clientWidth, Hc = renderer.domElement.clientHeight;
     renderer.setViewport(rect.x, Hc - rect.y - rect.h, rect.w, rect.h);
@@ -155,7 +156,7 @@ export class RootsPane {
 
   /** Pane pixel position of a lattice point under the current g and picture, or null. */
   pixelOf(coef) {
-    const st = this.stars.stage(...coef, G.displayPushforward(this.g()), this.morph);
+    const st = this.stars.stageOf(coef, this.g(), this.morph);
     // Dust has no point here, and a root at ∞ is not drawn in the half-plane: ring neither.
     return st.kind === 2 || st.hidden ? null : this.toPixel(st.position[0], st.position[2]);
   }
@@ -252,7 +253,8 @@ export class RootsPane {
 
   /** The nearest drawn star to a pointer in the pane, or −1. Allocation-free over the whole cloud. */
   pick(e, radiusPx = 10) {
-    const { stars, H, HP } = this, rho = G.displayPushforward(this.g()), L = stars.lattice, co = L.coefficients;
+    // The buffer's labels are in the catalogue's frame, so move them with the matching ρ (see StarField).
+    const { stars, H, HP } = this, rho = stars.relative(this.g()), L = stars.lattice, co = L.coefficients;
     const px0 = e.clientX - this.rect.x, py0 = e.clientY - this.rect.y;
     const v = this.view(), s = this.rect.h / (2 * v.half), m = Math.min(3, Math.max(1, this.morph));
     let best = -1, bestD = radiusPx;
@@ -271,9 +273,9 @@ export class RootsPane {
       }
       const dx = this.rect.w / 2 + (x - v.cx) * s - px0, dy = this.rect.h / 2 - (z - v.cz) * s - py0;
       if (Math.abs(dx) > bestD || Math.abs(dy) > bestD) continue;
-      // ±f share a root, so in a picture they coincide; on a tie prefer the one whose leading coefficient is positive:
-      // the star rather than its negative, and c·y² with c > 0 at ∞.
-      const d = Math.hypot(dx, dy) + ((a || b || c) < 0 ? 1e-3 : 0);
+      // ±f share a root, so in a picture they coincide; on a tie prefer a + c > 0, the star rather than its negative
+      // (the future nappe, whatever the frame).
+      const d = Math.hypot(dx, dy) + (a + c < 0 ? 1e-3 : 0);
       if (d < bestD) { bestD = d; best = i; }
     }
     return best;

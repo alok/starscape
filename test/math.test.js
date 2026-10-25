@@ -23,9 +23,61 @@ test('the radius-6 fixture has 480 points with both nappes', () => {
 });
 
 test('star counts by depth a + c ≤ R', () => {
-  // Her viewer labels its cloud "a + c ≤ 48 · 98,696"; 98,696 is exactly the count at R = 57.
+  // Her viewer labels its cloud "a + c ≤ 48 · 98,696", but 98,696 is the count at ⌊1.2 · 48⌋ = 57: her catalogue is
+  // padded for dragging, and she draws only a + c < 48.
   assert.equal(F.starCount(48), 59084);
   assert.equal(F.starCount(57), 98696);
+});
+
+/** Every point the catalogue seen from x + iy should hold, by brute force over a box that contains it. */
+function catalogueByBrute(x, y, depth, ball) {
+  const out = new Map(), M = Math.max(depth, ball), A = Math.ceil(M / y) + 2;
+  for (let a = -A; a <= A; a++) for (let b = -Math.ceil(2 * Math.abs(x * a) + 4 * M + 4); b <= 2 * Math.abs(x * a) + 4 * M + 4; b++) {
+    const reach = y * (M + y * Math.abs(a)), base = -a * x * x - b * x;
+    for (let c = Math.floor(base - reach) - 2; c <= base + reach + 2; c++) {
+      if (!a && !b && !c) continue;
+      const d = F.discriminant(a, b, c), Y = F.depthFrom(x, y, a, b, c), k = F.content(a, b, c);
+      const inBall = d + 2 * Y * Y <= ball * ball + 1e-9, byDepth = Y <= depth + 1e-9 && (d < 0 || k <= depth);
+      if (F.deep(a, b, c) ? byDepth || inBall : inBall) out.set(`${a},${b},${c}`, `${d === 0 ? 3 : d > 0 ? 2 : a > 0 ? 0 : 1}/${+(k === 1)}`);
+    }
+  }
+  return out;
+}
+const catalogueMap = L => {
+  const m = new Map();
+  for (let i = 0; i < L.count; i++) {
+    const key = [0, 1, 2].map(j => L.coefficients[3 * i + j]).join();
+    assert.ok(!m.has(key), `${key} twice`);
+    m.set(key, `${L.kinds[i]}/${L.primitive[i]}`);
+  }
+  return m;
+};
+
+test('the catalogue seen from any point holds exactly the stars, cone and dust within its bounds, once each', () => {
+  for (const [x, y, depth, ball] of [[0, 1, 20, 6], [0, 1, 0, 6], [0.3, 0.8, 20, 6], [0.37, 1.9, 15, 7.3], [-0.5, 0.866, 12, 5], [0.1, 3.5, 18, 6], [0.25, 0.3, 10, 6], [3.2, 0.7, 14, 6]]) {
+    assert.deepEqual(catalogueMap(F.catalogue({ x, y, depth, ball })), catalogueByBrute(x, y, depth, ball), `${x} + ${y}i`);
+  }
+  // Seen from i it is the old fixed crop.
+  assert.equal(F.buildLattice({ ball: 6, depth: 0 }).count, 480);
+  assert.equal(F.catalogue({ depth: 57, ball: 0.5 }).kinds.filter(k => k === F.KIND_CODE.upper).length, F.starCount(57));
+});
+
+test('depth seen from z is the a + c of the form moved by any h with h·z = i, and the catalogue moves with SL₂(ℤ)', () => {
+  const z = { x: 0.31, y: 0.62 }, h = G.toI(z);
+  for (const f of [[1, 0, 1], [3, -2, 5], [7, 13, 6], [0, 0, 1]]) {
+    const [a, , c] = G.apply3(G.pushforward(h), f);
+    close(F.depthFrom(z.x, z.y, ...f), a + c);
+  }
+  // Seen from γ·z the catalogue is ρ(γ) of the one seen from z: labels change, the drawn sky does not.
+  for (const gamma of [G.T, G.S, G.multiply(G.T, G.S), [2, 1, 1, 1]]) {
+    const w = G.act(gamma, z), there = catalogueMap(F.catalogue({ x: w.x, y: w.y, depth: 16, ball: 6 }));
+    const here = F.catalogue({ x: z.x, y: z.y, depth: 16, ball: 6 }), moved = new Map();
+    for (let i = 0; i < here.count; i++) {
+      const f = [0, 1, 2].map(j => here.coefficients[3 * i + j]);
+      moved.set(G.pushforwardExact(gamma, f).map(Number).join(), `${here.kinds[i]}/${here.primitive[i]}`);
+    }
+    assert.deepEqual(there, moved, `γ = ${gamma}`);
+  }
 });
 
 test('polynomial and root text', () => {
