@@ -37,9 +37,9 @@ brighter and simpler. This is the starscape of Harriss, Stange and Trettel
      is why geodesics are straight in the Klein model.
    - Apparent brightness is perspective. Along a ray, `k·p` has `Δ = k²Δ_p`,
      so by the inverse-square law a star's brightness falls like `1/|Δ|`
-     (drawn softened, as `1/|Δ|^β`, so faint stars stay visible). The plots of algebraic numbers
-     (Harriss–Stange–Trettel, Baez/Christensen) use the same rule:
-     complexity dims a number.
+     (drawn softened, as `1/|Δ|^β`, so faint stars stay visible). The plots
+     of algebraic numbers (Harriss–Stange–Trettel, Baez/Christensen) use
+     the same rule: complexity dims a number.
    - Dragging the sky is a Lorentz transformation of the lattice: points slide
      along their shells `Δ = const`. Releasing snaps to SL₂(ℤ`), and the
      lattice lands on itself.
