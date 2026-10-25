@@ -86,7 +86,8 @@ export function rootText(a, b, c) {
   const rad = (k === 1n ? '' : k) + (d < 0n ? 'i' : '') + (r === 1n ? '' : '√' + r);
   const sign = d < 0n ? '+' : '±';
   const body = p === 0n ? (d < 0n ? rad : '±' + rad) : `${minus(p)} ${sign} ${rad}`;
-  return q === 1n ? body : `(${body})/${q}`;
+  // A single term needs no parentheses: i/2, 2i/3, i√3/2; a sum or ± keeps them, (±√5)/2.
+  return q === 1n ? body : p === 0n && d < 0n ? `${body}/${q}` : `(${body})/${q}`;
 }
 const minus = n => (n < 0n ? '−' + -n : String(n));
 function fraction(p, q) {
