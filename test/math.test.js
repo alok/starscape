@@ -161,3 +161,16 @@ test('interpolate: the snap path runs along the geodesic from g·i to γ·i at c
     }
   }
 });
+
+test('planeThrough takes the primitive normal exactly, and refuses one past 2⁵³', () => {
+  // The raw cross products pass 2⁵³; rounded before the gcd, the normals missed both stars.
+  for (const [p, q] of [[[954215165853697, 1041176979308545, 925227894702081], [8, -1, 11]],
+    [[-3377699720564908, -1, -4503599627419877], [3, -3, 5]]]) {
+    const plane = P.planeThrough(p, q);
+    assert.deepEqual(plane.normal, [3, -2, -4]);
+    assert.ok(P.onPlane(plane.normal, p) && P.onPlane(plane.normal, q));
+  }
+  // Here the primitive normal has the entry 11256382501459301, which no Number holds.
+  assert.ok(P.planeThrough([108103307, -80, 47636247], [210664668, 594, 196956571]).error);
+  assert.ok(P.planeFromNormal([1n, 2n ** 60n, 1n]).error);
+});

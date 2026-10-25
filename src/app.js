@@ -329,7 +329,8 @@ function absorb() {
   const move = p => G.pushforwardExact(gamma, p).map(Number);
   const before = state.selected;
   if (state.selected) state.selected = move(state.selected);
-  if (state.plane) state.plane = Pl.planeFromNormal(move(state.plane.normal));
+  // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one.
+  if (state.plane) { const p = Pl.planeFromNormal(move(state.plane.normal)); state.plane = p.error ? null : p; }
   setG([...G.identity]);
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selected)}` : `γ = ${matrixText(gamma)}`);
   if (!inspector.el.hidden) inspector.show(state.selected);
