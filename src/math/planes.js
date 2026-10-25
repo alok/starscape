@@ -61,13 +61,13 @@ export function displayNormal([A, B, C]) {
 /** Klein-disk endpoints of the geodesic (on the unit circle). */
 export const kleinChord = plane => plane.endpoints.map(boundaryPoint);
 
-/** Equation in the source viewer's style, e.g. "2a − 2c = 0". */
-export function planeEquation([A, B, C]) {
-  const terms = [];
-  for (const [k, name] of [[-2 * C, 'a'], [B, 'b'], [-2 * A, 'c']]) {
+/** Equation in the source viewer's style, e.g. "2a − 2c = 0", exact for a normal of Numbers or BigInts. */
+export function planeEquation(normal) {
+  const [A, B, C] = normal.map(big), terms = [];
+  for (const [k, name] of [[-2n * C, 'a'], [B, 'b'], [-2n * A, 'c']]) {
     if (!k) continue;
-    const m = Math.abs(k);
-    terms.push(`${k < 0 ? (terms.length ? ' − ' : '−') : terms.length ? ' + ' : ''}${m === 1 ? '' : m}${name}`);
+    const m = abs(k);
+    terms.push(`${k < 0n ? (terms.length ? ' − ' : '−') : terms.length ? ' + ' : ''}${m === 1n ? '' : m}${name}`);
   }
   return `${terms.join('')} = 0`;
 }

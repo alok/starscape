@@ -10,7 +10,7 @@ export const CHAPTERS = [
     eyebrow: 'I · the lattice',
     title: 'Every quadratic is a point',
     body: `<p>The polynomial ${m('ax² + bx + c')} is the point ${m('(a, b, c)')} of ℤ³. The discriminant ${m('Δ = b² − 4ac')} is a quadratic form of signature (2, 1), so its zero set is a light cone.</p>
-<p>Outside the cone (blue dust) a polynomial has two real roots. On it (mint) a double root. Inside it a complex pair. Drag to turn the lattice and tap any point.</p>`,
+<p>Outside the cone (gray dust) a polynomial has two real roots. On it (white) a double root. Inside it a complex pair. Drag to turn the lattice and tap any point.</p>`,
     scene: { view: 'outside', pose: { radius: 23, theta: 0.75, phi: 1.2, target: [0, 0.4, 0], fov: 40 }, morph: 0, depth: 0, ball: 6,
       alpha: { upper: 1, lower: 0.8, exterior: 0.75, null: 1 }, cone: true, screen: false },
   },
@@ -26,7 +26,7 @@ export const CHAPTERS = [
     eyebrow: 'III · the view from zero',
     title: 'Stand at the origin',
     body: `<p>You are now the zero polynomial. Roots ignore scale, so each polynomial is really a <em>direction</em> from you, and the sky you see is the starscape.</p>
-<p>Nothing here is drawn to look like stars. It is just perspective. Along a line of sight, ${m('k·f')} sits ${m('k')} times farther than ${m('f')} and has ${m('Δ = k²Δ_f')}, so a star's brightness falls like ${m('1/|Δ|')}: <b>simpler numbers shine brighter.</b> The same rule dims complicated numbers in pictures of algebraic numbers.</p>
+<p>Nothing here is drawn to look like stars. It is just perspective. Along a line of sight, ${m('k·f')} sits ${m('k')} times farther than ${m('f')} and has ${m('Δ = k²Δ_f')}, so by the inverse-square law a star's brightness falls like ${m('1/|Δ|')} (drawn softened, as ${m('1/|Δ|<sup>β</sup>')} with β = 0.55, so faint stars stay visible): <b>simpler numbers shine brighter.</b> The same rule dims complicated numbers in pictures of algebraic numbers.</p>
 <p>Every multiple hides exactly behind its primitive form. Lean your eye off the origin (W A S D, or move your head in VR) and they peek out: parallax separates them.</p>`,
     scene: { view: 'origin', pose: { pitch: Math.PI / 2 - 1e-4, yaw: 0, fov: 92 }, lean: [0, 0, 0], morph: 0, depth: 'deep',
       alpha: { upper: 1, lower: 0.15, exterior: 0.06, null: 0.9 }, cone: true, screen: false, select: [2, 2, 2] },
@@ -51,7 +51,7 @@ export const CHAPTERS = [
     eyebrow: 'V · the quadratic formula',
     title: 'An isometry onto the half-plane',
     body: `<p>${m('[a : b : c] ↦ (−b + i√(4ac − b²)) / 2a')} is an isometry from the Klein model onto the upper half-plane (Thm 4.9). Drag the picture slider from Klein through Poincaré to the half-plane: straight chords bend into circles orthogonal to ℝ.</p>
-<p>Each star is a disk of hyperbolic radius ${m('∝ 1/√|Δ|')}, which in the half-plane is ${m('1/2a')}. A double-root form ${m('k(qx − p)²')} sits on the light cone, and its picture is a horocycle: drawn as a disk, it is a ring tangent to ℝ at its root ${m('p/q')}, with radius ${m('∝ 1/2kq²')}. The forms ${m('(qx − p)²')} give the <b>Ford circles</b>, each scaled about its point of tangency, so rings at different roots never overlap; the multiples ${m('k(qx − p)²')} nest inside them. Choose <em>Disks</em> to see them.</p>`,
+<p>Each star is a disk of hyperbolic radius ${m('∝ 1/√|Δ|')}, which in the half-plane is ${m('1/2a')}; past a few pixels a disk is drawn smaller, growing only like the square root of that, so the big ones do not swamp the rest. A double-root form ${m('k(qx − p)²')} sits on the light cone, and its picture is a horocycle: drawn as a disk, it is a ring tangent to ℝ at its root ${m('p/q')}, with radius ${m('∝ 1/2kq²')}. The forms ${m('(qx − p)²')} give the <b>Ford circles</b>, each scaled about its point of tangency, so rings at different roots never overlap; the multiples ${m('k(qx − p)²')} nest inside them. Choose <em>Disks</em> to see them.</p>`,
     // Seen at an angle from below, with the cone: the 3D view shows where the picture lives in coefficient space,
     // while the roots pane beside it shows the same picture flat. A phone has no pane, so there it is seen face-on.
     scene: { view: 'outside', pose: { radius: 16, theta: 0.45, phi: 2.4, target: [0, 4.5, 0.4], fov: 50 },
@@ -96,7 +96,7 @@ export const CHAPTERS = [
     eyebrow: 'VIII · rational geodesics',
     title: 'The necklaces',
     body: `<p>A plane through the origin meets the cone in a line of the Klein model, so its roots trace a geodesic. Planes spanned by lattice points give the <em>rational geodesics</em>: the necklaces that structure the picture (Obs. 4.12).</p>
-<p>Tap any blue dust point for its plane, or Shift-tap two stars for the necklace through both. The pair ${m('x² + 1')}, ${m('x² + x + 1')} spans ${m('2a − 2c = 0')} again: the unit circle, from −1 to 1.</p>`,
+<p>Tap any gray dust point for its plane, or Shift-tap two stars for the necklace through both. The pair ${m('x² + 1')}, ${m('x² + x + 1')} spans ${m('2a − 2c = 0')} again: the unit circle, from −1 to 1.</p>`,
     scene: { view: 'outside', pose: { radius: 18, theta: 1.1, phi: 1.0, target: [0, 3, 0] }, morph: 0, depth: 'deep',
       alpha: { upper: 1, lower: 0.15, exterior: 0.8, null: 0.8 }, cone: true, screen: true, shell: 0, plane: [1, 0, -1], select: [1, 1, 1] },
   },

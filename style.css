@@ -66,10 +66,10 @@ a { color: var(--accent-2); }
 #inspector { position: fixed; top: max(14px, env(safe-area-inset-top)); right: var(--gutter); width: 300px; padding: 14px 16px; z-index: 6; }
 #inspector .kind { margin: 0; font: 600 11px/1 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
 #inspector .kind .swatch { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
-#inspector .poly { margin: 8px 0 8px; font: 400 27px/1.15 var(--serif); }
+#inspector .poly { margin: 8px 0 8px; font: 400 27px/1.15 var(--serif); overflow-wrap: anywhere; }
 #inspector dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; font-size: 13.5px; }
 #inspector dt { color: var(--ink-3); }
-#inspector dd { margin: 0; font-family: var(--serif); font-size: 16px; text-align: right; }
+#inspector dd { margin: 0; font-family: var(--serif); font-size: 16px; text-align: right; overflow-wrap: anywhere; }
 #inspector .note { margin: 10px 0 0; color: var(--ink-2); font: italic 14.5px/1.4 var(--serif); }
 #inspector .note:empty { display: none; }
 #inspector .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }

@@ -18,6 +18,7 @@ import * as F from '../math/forms.js';
 import * as Pl from '../math/planes.js';
 import { walk } from '../math/flatland.js';
 import { GlassPanel, makeGrabber, FONTS } from './xrpanel.js';
+import { exactLabel } from './inspector.js';
 
 const ORIGIN_SCALE = 0.45, TABLE_SCALE = 0.035, FLOOR_SCALE = 3;   // meters per display unit
 
@@ -157,7 +158,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
   ui.card.draw = p => {
     const sel = state.selected, pad = 24;
     if (!sel) { p.text('Point at a star and pinch', pad, 30, { size: 22, italic: true, color: '#aeb8c9', width: p.canvas.width - 2 * pad }); return; }
-    const [a, b, c] = sel, d = F.discriminant(a, b, c);
+    const [a, b, c] = exactLabel(sel, state), d = F.discriminantExact(a, b, c);   // BigInt: every digit, never 1e+24
     p.text(F.polynomialText(a, b, c), pad, 22, { size: 34, color: '#fff' });
     p.text(`Δ = ${String(d).replace('-', '−')}`, pad, 78, { size: 23, color: '#cfd6e2' });
     p.text(F.rootText(a, b, c), pad, 112, { size: 23, color: '#cfd6e2', italic: true, width: p.canvas.width - 2 * pad });

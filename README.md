@@ -12,7 +12,7 @@ This is an independent implementation inspired by **Katherine E. Stange**’s [S
 
 The tour follows Stange's seven chapters and adds a few things that only a spatial view can show:
 
-- **Brightness is perspective.** Seen from the origin, `k·f` sits `k` times farther than `f` and has `Δ = k²Δ_f`, so a star's brightness falls like `1/|Δ|`. Simpler numbers shine brighter, the same rule that dims complicated numbers in plots of algebraic numbers. Every multiple hides exactly behind its primitive form, and leaning your eye off the origin shows them by parallax.
+- **Brightness is perspective.** Seen from the origin, `k·f` sits `k` times farther than `f` and has `Δ = k²Δ_f`, so by the inverse-square law a star's brightness falls like `1/|Δ|` (the default `β = 0.55` draws it softened, as `1/|Δ|^β`). Simpler numbers shine brighter, the same rule that dims complicated numbers in plots of algebraic numbers. Every multiple hides exactly behind its primitive form, and leaning your eye off the origin shows them by parallax.
 - **Geodesics are straight because you see planes edge-on.** A plane through your eye looks like a line, which is why the Klein model's geodesics are chords.
 - **Ford circles are the stars on the horizon.** In the half-plane a star has radius `1/2a`. A double-root form `k(qx − p)²` lies on the light cone, and its picture is a horocycle: drawn as a disk (⚙ → disks, or chapter V's *Disks*), it is a ring tangent to ℝ at `p/q` with radius `∝ 1/2kq²`. The lattice includes these forms up to the star depth, so the Ford circles appear, each scaled by `R₀` about its point of tangency (exactly the Ford circles at `R₀ = 1`, larger than the viewer draws). `test/picture.test.js` checks the shader's CPU mirror: centers, radii, tangency of Farey neighbors, SL₂(ℤ)-invariance and the Poincaré picture.
 - **Dragging the sky is a Lorentz boost.** ρ identifies PSL₂(ℝ) with SO⁺(2,1). Stars slide along their shells `Δ = const`, and releasing settles on SL₂(ℤ), where the lattice lands on itself.
@@ -33,7 +33,7 @@ On a wide screen the roots pane sits beside the lattice, as in Stange's viewer. 
 
 ## Points, color and brightness
 
-By default every point is drawn the same tiny size, because these are points of a lattice. **Color** is the invariant `|Δ|`, read as photon energy: violet for the simplest numbers, red as the discriminant grows, on Stange's fixed logarithmic range 3…240. The light cone is white. **Brightness** is the light you would receive standing at the origin, `(4/|v|²)^β`. Settings switch to disks sized by hyperbolic radius, as in her viewer, and offer other palettes. See [the guide](docs/GUIDE.md) for the derivations.
+By default every point is drawn the same tiny size, because these are points of a lattice. **Color** is the invariant `|Δ|`, read as photon energy: violet for the simplest numbers, red as the discriminant grows, on Stange's fixed logarithmic range 3…240. The light cone is white. **Brightness** is the light you would receive standing at the origin, `(4/|v|²)^β`. Settings switch to disks sized by hyperbolic radius, as in her viewer, though past a few pixels ours grow only like the square root of that size; they also offer other palettes. See [the guide](docs/GUIDE.md) for the derivations.
 
 ## Run it
 
@@ -65,7 +65,7 @@ scripts/      no-cache dev server; headless screenshots at exact device sizes, a
 
 ## What is checked, and how
 
-- **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text; class numbers; ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
+- **Unit tests** (`node --test`): the radius-6 fixture has 480 points; star counts; root text, exact past 2⁵³; class numbers; the reduced form of a star's orbit, against a brute-force search of SL₂(ℤ); ρ(g) moves roots by g and preserves Δ; model round trips; the (1,0,1)–(1,1,1) plane `2a − 2c = 0` with endpoints ±1; the snap counterexample −0.4+0.1i → −0.4+i settles on T⁴ and sends (13,20,34) to (13,−84,162); Farey edges are exactly the Δ = 1 forms; walking moves you the stated hyperbolic distance; walking toward φ alternates L and R.
 - **Lean 4** (`lean/`): see [its README](lean/README.md) for which statements are kernel-checked, which are `decide` fixtures and which are compiled tests.
 - **The GPU's arithmetic** ([`lean-float/`](lean-float/README.md), on FloatLib): the shader's float32 Δ is exact, and its plane test marks exactly the stars on the plane whenever the products stay below 2²⁴. The app checks that bound at runtime; `test/float32.test.js` replays the shader with `Math.fround`.
 - **Visual and device behavior** is checked in desktop Chrome and under phone emulation (390×844, touch). WebXR has been exercised in an emulator, not yet on a physical headset.
