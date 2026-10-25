@@ -208,8 +208,10 @@ function reduce(z) {
     if (!(Number.isFinite(z.x) && z.y > 0 && Number.isFinite(z.y))) return null;
     const n = Math.round(z.x);
     if (n) { z = { x: z.x - n, y: z.y }; m = G.multiply([1, -n, 0, 1], m); }
-    // Checked after every translation, including the last, so γ stays exact in doubles however far the walk.
-    if (m.some(x => Math.abs(x) > 2 ** 24)) return null;
+    // Checked after every translation, including the last, so a far viewpoint cannot carry γ past 2²⁶, where the
+    // products in isIntegral and in absorb's frame·γ⁻¹ stop being exact in doubles. (Labels do not need it: past
+    // 6·|γ|²·max|f| < 2⁵³ coefficients(i) works in BigInt.)
+    if (m.some(x => Math.abs(x) > 2 ** 26)) return null;
     if (z.x * z.x + z.y * z.y >= 1 - 1e-12) return { m: m.map(x => x + 0), z };
     z = G.act(G.S, z); m = G.multiply(G.S, m);
   }

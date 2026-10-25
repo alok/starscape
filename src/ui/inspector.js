@@ -83,7 +83,10 @@ export class Inspector {
     if (this.el.hidden || !this.shown) return;
     const { state } = this, { e, kind, d } = this.shown, [a, , c] = e;
     const away = state.g.some((x, i) => Math.abs(x - G.identity[i]) > 1e-9), w = G.act(G.inverse(state.g), { x: 0, y: 1 });
-    row('i-depth', kind !== 'upper' ? null : away ? `${a + c} · here ≈ ${F.depthFrom(w.x, w.y, ...e.map(Number)).toFixed(1)}` : String(a + c));
+    // The depth seen from here comes from the sky's own placement (actions.depthHere, through the catalogue's frame):
+    // on the app's label in doubles it cancels from about 18 units out.
+    const here = away && kind === 'upper' ? (this.actions.depthHere?.(e) ?? F.depthFrom(w.x, w.y, ...e.map(Number))) : null;
+    row('i-depth', kind !== 'upper' ? null : away ? `${a + c} · here ≈ ${here.toFixed(1)}` : String(a + c));
     const moved = away && d < 0;
     $('i-g-label').hidden = $('i-g').hidden = !moved;
     if (moved) $('i-g').textContent = `g·root ≈ ${complexText(G.act(state.g, F.upperRoot(...e.map(Number))))}`;

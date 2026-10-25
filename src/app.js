@@ -339,14 +339,14 @@ function absorb() {
   // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one. It stays in
   // BigInt until planeFromNormal checks it: rounded to doubles first, it could pass as some other plane.
   if (state.plane) { const p = Pl.planeFromNormal(G.pushforwardExact(gamma, state.plane.normal)); state.plane = p.error ? null : p; }
-  // The hovered star is held by its label too: the one under the pointer now has the relabeled one.
-  if (state.hovered) state.hovered = G.pushforwardExact(gamma, state.hovered).map(Number);
   writeHash();   // a shared link names the relabeled star, the one now ringed
   stars.absorb(gamma);   // the buffer's points get the same new labels, so nothing on screen changes
   setG([...G.identity]);
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selectedExact)}` : `γ = ${matrixText(gamma)}`);
-  if (inspector.el.classList.contains('preview')) inspector.show(state.hovered, { preview: true });
-  else if (!inspector.el.hidden) inspector.show(state.selected);
+  const preview = !inspector.el.hidden && inspector.el.classList.contains('preview');
+  if (!preview && !inspector.el.hidden) inspector.show(state.selected);
+  // Whether the sky moved under a resting pointer (T, S) or with it (a drag), the star under it is found again.
+  hoverAt(lastPointer, { preview });
 }
 /** With Snap on, glide an off-lattice g to the nearest γ and relabel by it; not inside, where g is where you stand. */
 function settle() {
@@ -393,7 +393,18 @@ function pickAt(e, radiusPx) {
   return stars.pick(p.x, p.y, toClip, canvas.clientHeight, { radiusPx, aspect: camera.aspect });
 }
 
-let skyRoot = null, hoverEvent = null, pressG = null;
+let skyRoot = null, hoverEvent = null, pressG = null, lastPointer = null;
+canvas.addEventListener('pointermove', e => { lastPointer = e; }, { passive: true });
+canvas.addEventListener('pointerleave', () => { lastPointer = null; });
+/** Hover the star under pointer event `ev` (none if null); `preview` shows or hides the card's preview of it. */
+function hoverAt(ev, { preview = false, keep = false } = {}) {
+  const i = !ev ? -1 : pane.contains(ev) ? pane.pick(ev, 9) : pickAt(ev, 11);
+  const coef = i >= 0 ? stars.coefficients(i) : null;
+  if (keep && (coef === state.hovered || sameCoef(coef, state.hovered))) return;
+  state.hovered = coef; dirty = true;
+  canvas.classList.toggle('hovering', !!coef);
+  if (preview) coef ? inspector.show(coef, { preview: true }) : inspector.hide();
+}
 new PointerInput(canvas, {
   // A press that stops a glide (a click on the sky or pane cancels it) has moved g as surely as a drag.
   start: () => { rig.stopInertia(); pressG = gAnim ? null : state.g; },
@@ -446,22 +457,18 @@ new PointerInput(canvas, {
     if (hoverEvent) { hoverEvent = e; return; }
     hoverEvent = e;
     requestAnimationFrame(() => {
-      const ev = hoverEvent, i = pane.contains(ev) ? pane.pick(ev, 9) : pickAt(ev, 11); hoverEvent = null;
-      const coef = i >= 0 ? stars.coefficients(i) : null;
-      if (coef === state.hovered || sameCoef(coef, state.hovered)) return;
-      state.hovered = coef; dirty = true;
-      canvas.classList.toggle('hovering', !!coef);
+      const ev = hoverEvent; hoverEvent = null;
       // Previews never replace a card the user opened; they show while the inspector is closed.
-      const pinned = !inspector.el.hidden && !inspector.el.classList.contains('preview');
-      if (!pinned) coef ? inspector.show(coef, { preview: true }) : inspector.hide();
+      hoverAt(ev, { preview: inspector.el.hidden || inspector.el.classList.contains('preview'), keep: true });
     });
   },
 });
 
 const keys = new HeldKeys({
   // First-person vantages take over the movement keys while they are held.
-  // While a change of vantage is under the veil, the arrows still turn pages (rig.mode has not caught up yet).
-  owns: k => !pendingFade && (rig.mode === 'inside' && /^(arrow(up|down|left|right)|[wasdqe])$/.test(k)) || (rig.mode === 'origin' && /^[wasdqe]$/.test(k)),
+  // While a change of vantage is under the veil the arrows still turn pages (rig.mode has not caught up yet); the
+  // movement letters stay owned Inside, or s would apply S.
+  owns: k => (rig.mode === 'inside' && (/^[wasdqe]$/.test(k) || (!pendingFade && /^arrow(up|down|left|right)$/.test(k)))) || (rig.mode === 'origin' && /^[wasdqe]$/.test(k)),
   press: k => {
     if (k === 'ArrowRight') tour.go(state.chapter + 1);
     else if (k === 'ArrowLeft') tour.go(state.chapter - 1);
@@ -508,6 +515,8 @@ const inspector = new Inspector({
     showShell: k => { state.shellK = k; shell.userData.set(k, 40); dirty = true; inspector.show(state.selected); },
     clearPlane: () => { clearPlane(); inspector.show(state.selected); },
     clearShell: () => { clearShell(); inspector.show(state.selected); },
+    // a′ + c′ in the current picture, the Y the Stars setting bounds, placed as the shader places it.
+    depthHere: e => { const [a, b, c] = stars.framed(e), r = stars.relative(state.g); return r[3] * -b + r[4] * (a + c) + r[5] * (c - a); },
   },
 });
 function clearPlane() { state.plane = null; dirty = true; }
@@ -540,9 +549,10 @@ function pairWith(coef) {
   dirty = true;
 }
 function lookAtStar(coef) {
+  finishFade();   // aim from where a vantage change still under the veil is going
   // Where the star is drawn in the picture the Origin view will show (leaving Inside sets the Klein picture), placed
   // through the catalogue's frame as the ring is: far from i, ρ(g) on the app's label cancels.
-  const v = new THREE.Vector3(...stars.stageOf(coef, state.g, rig.mode === 'inside' ? 1 : tw.get('morph')).position);
+  const v = new THREE.Vector3(...stars.stageOf(coef, state.g, rig.mode === 'inside' ? 1 : state.morphTarget ?? tw.get('morph')).position);
   if (v.y < 0) v.negate();
   v.normalize();
   goOrigin({ pitch: Math.min(Math.asin(Math.min(1, v.y)), Math.PI / 2 - 1e-4), yaw: Math.atan2(-v.x, -v.z), fov: 70 });
@@ -603,9 +613,12 @@ function fade(fn, always = false) {
 /** Land a change of vantage still under the veil now, so the next one starts from where that one was going. */
 function finishFade() {
   if (!pendingFade) return;
-  const { timer, fn } = pendingFade;
+  const { timer, fn } = pendingFade, veil = $('veil');
   pendingFade = null; clearTimeout(timer);
-  fn(); dirty = true; $('veil').classList.remove('on');
+  // The veil may be only partly down: drop it fully for the switch, then lift it as a fade would.
+  veil.style.transition = 'none'; veil.classList.add('on'); void veil.offsetWidth; veil.style.transition = '';
+  fn(); dirty = true;
+  clearTimeout(veilTimer); veilTimer = setTimeout(() => veil.classList.remove('on'), 80);
 }
 function leaveInside() {
   pane.inside = null;
