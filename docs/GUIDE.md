@@ -69,7 +69,7 @@ Give every star a hyperbolic radius `ρ = R₀/√|Δ|`. Then:
 
 Along one line of sight, `k·f` sits `k` times farther than `f` and has `Δ = k²Δ_f` (Lean: `Form.disc_smul`). A point source `k` times farther is `k²` times dimmer, so **along a ray, brightness falls like 1/|Δ|**: simpler numbers shine brighter. Every multiple hides exactly behind its primitive form. Lean your eye off the origin and parallax reveals them (chapter III).
 
-The default *points* style makes this the encoding. Every point has the same tiny size, and brightness is `(4/|v|²)^β`, where `v` is the point after the current symmetry. That is literally the light you would receive at the origin, normalized so `(1,0,1)` has weight 1. With `β = 1` it is the inverse-square law. A softer default, `β = 0.55`, keeps the faint structure visible.
+The default *points* style makes this the encoding. Every point has the same tiny size, and brightness is `(4/|v|²)^β`, where `v` is the point after the current symmetry. That is literally the light you would receive at the origin, normalized so `(1,0,1)` has weight 1. With `β = 1` it is the inverse-square law. A softer default, `β = 0.55`, keeps the faint structure visible: along a ray it draws `1/|Δ|^β`, so `k·f` is `k^(2β) ≈ k^1.1` times dimmer than `f`, not `k²`. The inspector's note on a multiple states the physics (`1/k²` of the light), not the pixels.
 
 Why not just `1/|Δ|`? Because it ignores where the star is. Two primitive forms can share a discriminant while one has small `a` and the other large `a`. The second's root sits near the real axis, and the form itself sits far from you in ℤ³. `1/|v|²` dims it, and `1/|Δ|` does not. Stange sizes stars by `1/2a` for the same reason.
 
