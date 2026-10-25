@@ -23,6 +23,9 @@ import { setupXR } from './ui/xr.js';
 const $ = id => document.getElementById(id);
 const H = 4, HP = 2;          // screen height and half-plane scale, display units
 const BALL = 6;               // radius of the whole-lattice ball
+// Dust is drawn in full out to the ball and fades by 7 (Stange's edge: from 86% of its bound), so points crossing
+// the rim of the ball as the sky turns fade instead of popping, and the 480 points of the ball keep their strength.
+const BALL_EDGE = BALL / 0.86;
 const INSIDE_SCALE = 4;       // inside, the ground disk is H · 4 = 16 world units in radius
 const isMobile = matchMedia('(pointer: coarse)').matches;
 
@@ -70,13 +73,15 @@ const tw = new Tweens({ reducedMotion: rig.reducedMotion, onChange: markDirty })
 Object.entries({ a_upper: 1, a_lower: 0.8, a_exterior: 0.75, a_null: 1, morph: 0, cone: 1, screen: 0, r0: 0.11, floor: 0 })
   .forEach(([k, v]) => tw.set(k, v, 0));
 
-// Phones get her full sky (a + c ≤ 57, about 100k stars); desktops can go denser.
-const MAX_DEPTH = isMobile ? 57 : 96;
+// The GPU holds a catalogue of the stars near where the sky is looked at (src/render/stars.js), so its size follows
+// the depth setting: about 220k points at 57 and 75k at 40. Phones stop at 57.
 if (isMobile) $('s-depth').querySelector('option[value="80"]')?.remove();
-const LATTICE = F.buildLattice({ ball: BALL, depth: MAX_DEPTH });
-const stars = new StarField(LATTICE, { palette: state.palette });
+const reach = () => ({ depth: state.starDepth, ball: BALL_EDGE });
+const stars = new StarField(reach(), { palette: state.palette });
 stars.uniforms.uH.value = H; stars.uniforms.uHP.value = HP;
-stars.setRho(G.displayPushforward(state.g));
+stars.setG(state.g);
+// A new catalogue renumbers the points: forget the hovered index rather than ring another star.
+stars.onRebuild = () => { state.hovered = -1; dirty = true; };
 const cone = makeCone(8), screenDisk = makeScreen(H), selection = makeSelection();
 const planeView = makePlane(), shell = makeShell(), floor = makeFloor(H), axes = makeAxes(4);
 world.add(stars.points, cone, screenDisk, planeView, shell, floor, selection, axes);
@@ -152,7 +157,6 @@ function syncUniforms() {
     tw.get('a_exterior') * +state.show.dust, tw.get('a_null'));
   u.uMorph.value = m;
   u.uDepth.value = tw.get('depthOn') > 0.5 ? state.starDepth : 0;
-  u.uBall.value = BALL;
   // Exposure by picture: a point's brightness is the light it sends to the origin, 4/|v|², whatever the camera, so
   // on a screen the faint majority needs more light to be seen at all, from outside or from the origin (which then
   // reads like the roots pane beside it). In a headset the sky surrounds you and keeps its natural level. Flattened
@@ -173,10 +177,12 @@ function syncUniforms() {
   u.uStyle.value = rig.mode === 'inside' ? 0 : state.style;
   u.uShell.value = state.shellK;
   // The shader marks the plane's stars in float32, exactly only under a proved bound (gpuPlaneExact); past it
-  // (after absorbing a large γ) the chord is still drawn exactly but the stars are left unmarked.
-  const marked = state.plane && Pl.gpuPlaneExact(state.plane.normal, LATTICE.maxCoefficient);
+  // (after absorbing a large γ) the chord is still drawn exactly but the stars are left unmarked. It tests the
+  // buffer's own labels, so the normal is relabeled into the catalogue's frame too.
+  const normal = state.plane && stars.framed(state.plane.normal);
+  const marked = state.plane && Pl.gpuPlaneExact(normal, stars.lattice.maxCoefficient);
   u.uPlaneOn.value = marked ? 1 : 0;
-  if (marked) u.uPlane.value.set(...state.plane.normal);
+  if (marked) u.uPlane.value.set(...normal);
   const planeKey = state.plane?.normal.join() ?? '';
   if (state.plane && !marked && planeKey !== warnedPlane) flash('This plane is too steep to mark its stars exactly in float32; its chord is exact.');
   warnedPlane = planeKey;
@@ -197,10 +203,10 @@ function syncUniforms() {
 
 const sameCoef = (p, q) => !!p && !!q && p.every((x, i) => x === q[i]);
 function updateSelectionMarker() {
-  const { ray, ring, hover } = selection.userData, rho = G.displayPushforward(state.g), m = tw.get('morph');
+  const { ray, ring, hover } = selection.userData, m = tw.get('morph');
   const place = (sprite, coef, minPx) => {
     if (!coef) { sprite.visible = false; return null; }
-    const st = stars.stage(...coef, rho);
+    const st = stars.stageOf(coef);   // through the catalogue's frame, so it stays exact far from i
     if (st.kind === 2 && m > 0.5) { sprite.visible = false; return null; }
     sprite.position.set(...st.position);
     const d = camera.position.distanceTo(world.localToWorld(sprite.position.clone()));
@@ -304,7 +310,7 @@ function frame(now) {
 let gAnim = null, flashTimer;
 function setG(g) {
   state.g = g;
-  stars.setRho(G.displayPushforward(g));
+  stars.setG(g);
   dirty = true;
   updateReadout();
 }
@@ -330,6 +336,7 @@ function absorb() {
   const before = state.selected;
   if (state.selected) state.selected = move(state.selected);
   if (state.plane) state.plane = Pl.planeFromNormal(move(state.plane.normal));
+  stars.absorb(gamma);   // the buffer's points get the same new labels, so nothing on screen changes
   setG([...G.identity]);
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selected)}` : `γ = ${matrixText(gamma)}`);
   if (!inspector.el.hidden) inspector.show(state.selected);
@@ -707,7 +714,7 @@ function paletteUI() {
 paletteUI();
 const setting = (id, event, fn) => $(id).addEventListener(event, e => { fn(e.target); dirty = true; });
 setting('s-palette', 'change', t => { state.palette = t.value; stars.setPalette(state.palette); paletteUI(); });
-setting('s-depth', 'change', t => { state.starDepth = Number(t.value); });
+setting('s-depth', 'change', t => { state.starDepth = Number(t.value); stars.setReach(reach()); });
 setting('s-exposure', 'input', t => { state.exposure = Number(t.value); });
 setting('s-style', 'change', t => { state.style = Number(t.value); });
 setting('s-beta', 'input', t => { stars.uniforms.uBeta.value = Number(t.value); $('s-beta-v').textContent = Number(t.value).toFixed(2); });

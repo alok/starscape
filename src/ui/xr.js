@@ -249,7 +249,7 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     let best = -1, bestCos = Math.cos(0.03);
     for (let i = 0; i < n; i++) {
       if (!stars.visible(i)) continue;
-      const st = stars.stage(...stars.coefficients(i));
+      const st = stars.stageIndex(i);
       v.set(...st.position).sub(o);
       const len = v.length(); if (len < 1e-6) continue;
       const score = v.dot(d) / len + Math.min(0.0008, (st.radius / len) * 0.3);
@@ -269,11 +269,12 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     if (hit?.grabber) { c.userData.held = { grab: true, offset: ui.group.position.clone().sub(hit.point), distance: hit.distance }; return; }
     if (hit) { c.userData.held = { ui: hit }; return; }
     const star = pickRay(c);
-    c.userData.held = { z: rootOfRay(c), moved: 0, start: performance.now(), star, up: upOf(c), roll: 0, twisting: false };
+    // Keep the star's label, not its index: a new catalogue can renumber the points while it is held.
+    c.userData.held = { z: rootOfRay(c), moved: 0, start: performance.now(), star, coef: star >= 0 ? stars.coefficients(star) : null, up: upOf(c), roll: 0, twisting: false };
     // Two points make a line: a star pinched in each hand spans its necklace.
     const other = controllers.find(o => o !== c && o.userData.held?.star >= 0);
     if (star >= 0 && other) {
-      const a = stars.coefficients(other.userData.held.star), b = stars.coefficients(star);
+      const a = other.userData.held.coef, b = c.userData.held.coef;
       if (F.discriminant(...a) < 0 && F.discriminant(...b) < 0) {
         const plane = Pl.planeThrough(a, b);
         if (!plane.error) { state.plane = plane; api.select(a); c.userData.held.paired = other.userData.held.paired = true; markDirty(); }
