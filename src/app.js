@@ -60,7 +60,7 @@ const state = {
   chapter: 0,
   morphTarget: 0,
   starDepth: isMobile ? 40 : 57,
-  exposure: 1.5, size: 1, style: 1,
+  exposure: 1.25, size: 1, style: 1,
   split: window.innerWidth >= 1000,     // the roots pane, side by side
   show: { cone: true, dust: true, lower: true, multiples: true },
 };
@@ -170,7 +170,7 @@ function syncUniforms() {
   // disks on the ground and was tuned with the boost, so it keeps it whatever the style setting says.
   const boosted = rig.mode === 'inside' || state.style === 1;
   const picture = boosted ? view * (1 + 1.2 * flat) * (1 - 0.35 * halfPlane) : 1;
-  u.uExposure.value = state.exposure * picture * portrait * (1 - 0.25 * tw.get('floor'));
+  u.uExposure.value = state.exposure * picture * portrait * (1 - 0.5 * tw.get('floor'));
   u.uR0.value = tw.get('r0') * state.size;
   u.uMultiples.value = +state.show.multiples;
   // Inside, a star is drawn at its true hyperbolic size on the ground; elsewhere the chosen style applies.
