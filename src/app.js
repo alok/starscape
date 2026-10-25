@@ -54,7 +54,7 @@ const state = {
   snap: true,
   palette: 'spectrum',
   selected: null,           // [a, b, c], an exact base identity
-  hovered: -1,
+  hovered: null,   // a label, not a buffer index: a rebuild or a change of the catalogue's frame renumbers points
   plane: null,              // { normal: [A, B, C], endpoints }
   shellK: 0,
   chapter: 0,
@@ -80,8 +80,7 @@ const reach = () => ({ depth: state.starDepth, ball: BALL_EDGE });
 const stars = new StarField(reach(), { palette: state.palette });
 stars.uniforms.uH.value = H; stars.uniforms.uHP.value = HP;
 stars.setG(state.g);
-// A new catalogue renumbers the points: forget the hovered index rather than ring another star.
-stars.onRebuild = () => { state.hovered = -1; dirty = true; };
+stars.onRebuild = () => { dirty = true; };
 const cone = makeCone(8), screenDisk = makeScreen(H), selection = makeSelection();
 const planeView = makePlane(), shell = makeShell(), floor = makeFloor(H), axes = makeAxes(4);
 world.add(stars.points, cone, screenDisk, planeView, shell, floor, selection, axes);
@@ -219,8 +218,7 @@ function updateSelectionMarker() {
     return st;
   };
   const st = place(ring, state.selected, 18);
-  const hovered = state.hovered >= 0 ? stars.coefficients(state.hovered) : null;
-  place(hover, sameCoef(hovered, state.selected) ? null : hovered, 15);
+  place(hover, sameCoef(state.hovered, state.selected) ? null : state.hovered, 15);
   // The line of sight: from the origin through the star, on which all its multiples lie.
   ray.visible = !!st && st.kind !== 2 && m < 1.2;
   if (ray.visible) {
@@ -301,7 +299,7 @@ function frame(now) {
     renderer.render(scene, camera);
   }
   pane.render(renderer, scene);
-  pane.drawOverlay({ selected: state.selected, hovered: state.hovered >= 0 ? stars.coefficients(state.hovered) : null, plane: state.plane, palette: state.palette });
+  pane.drawOverlay({ selected: state.selected, hovered: state.hovered, plane: state.plane, palette: state.palette });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -439,12 +437,13 @@ new PointerInput(canvas, {
     hoverEvent = e;
     requestAnimationFrame(() => {
       const ev = hoverEvent, i = pane.contains(ev) ? pane.pick(ev, 9) : pickAt(ev, 11); hoverEvent = null;
-      if (i === state.hovered) return;
-      state.hovered = i; dirty = true;
-      canvas.classList.toggle('hovering', i >= 0);
+      const coef = i >= 0 ? stars.coefficients(i) : null;
+      if (coef === state.hovered || sameCoef(coef, state.hovered)) return;
+      state.hovered = coef; dirty = true;
+      canvas.classList.toggle('hovering', !!coef);
       // Previews never replace a card the user opened; they show while the inspector is closed.
       const pinned = !inspector.el.hidden && !inspector.el.classList.contains('preview');
-      if (!pinned) i >= 0 ? inspector.show(stars.coefficients(i), { preview: true }) : inspector.hide();
+      if (!pinned) coef ? inspector.show(coef, { preview: true }) : inspector.hide();
     });
   },
 });

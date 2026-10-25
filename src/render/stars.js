@@ -275,7 +275,7 @@ export class StarField {
     const old = this.points.geometry;
     this.points.geometry = geometry;
     old.dispose();
-    this.lattice = L; this.frame = frame; this.view = view;
+    this.lattice = L; this.setFrame(frame); this.view = view;
     this.setG(this.g);
   }
 
@@ -290,7 +290,7 @@ export class StarField {
     // covers the sky drawn, so switching never changes the picture.
     if (r) {
       const d = G.hyperbolicDistance(r.z, this.view);
-      if (d <= drift + 1e-12) { this.frame = r.m; drift = d; }
+      if (d <= drift + 1e-12) { this.setFrame(r.m); drift = d; }
     }
     this.rel = G.displayPushforward(G.multiply(g, G.inverse(this.frame)));
     this.uniforms.uRho.value.set(...this.rel);
@@ -306,9 +306,14 @@ export class StarField {
    */
   absorb(gamma) {
     const inv = G.inverse(gamma);
-    this.frame = G.multiply(this.frame, inv);
+    this.setFrame(G.multiply(this.frame, inv));
     if (this.pending) this.pending.frame = G.multiply(this.pending.frame, inv);
     this.homeward = true;
+  }
+  /** The catalogue's integral frame γ, with the ρ(γ⁻¹) that turns its labels back into the app's (null at home). */
+  setFrame(m) {
+    this.frame = m;
+    this.unframe = m.every((x, j) => x === G.identity[j]) ? null : G.pushforward(G.inverse(m));
   }
   /** ρ(g·γ⁻¹): what the shader needs to draw this field at g (the roots pane draws the Inside map at g = 1). */
   relative(g) { return G.displayPushforward(G.multiply(g, G.inverse(this.frame))); }
@@ -339,8 +344,7 @@ export class StarField {
   /** The app's label of point i: the frame's label pulled back by γ⁻¹. */
   coefficients(i) {
     const c = this.lattice.coefficients, f = [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
-    if (this.frame.every((x, j) => x === G.identity[j])) return f;
-    return G.apply3(G.pushforward(G.inverse(this.frame)), f).map(x => x + 0);
+    return this.unframe ? G.apply3(this.unframe, f).map(x => x + 0) : f;
   }
   /** A form in the app's labels relabeled into the frame's (for the shader's exact plane test). */
   framed(f) { return G.pushforwardExact(this.frame, f).map(Number); }
