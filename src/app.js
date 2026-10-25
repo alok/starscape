@@ -699,7 +699,13 @@ $('morph').addEventListener('input', e => { const m = Number(e.target.value); st
 $('g-t').onclick = () => applyIntegral('T');
 $('g-tinv').onclick = () => applyIntegral('Tinv');
 $('g-s').onclick = () => applyIntegral('S');
-$('g-snap').onclick = () => { state.snap = !state.snap; $('g-snap').setAttribute('aria-pressed', String(state.snap)); };
+$('g-snap').onclick = () => {
+  state.snap = !state.snap; $('g-snap').setAttribute('aria-pressed', String(state.snap));
+  // Turning it on settles at once, as hers does, rather than showing an off-lattice g under a pressed Snap. Not inside,
+  // where g is where you stand, nor mid-glide, which ends on its own target.
+  const off = state.g.some((x, i) => x !== G.identity[i]);
+  if (state.snap && off && rig.mode !== 'inside' && !gAnim) { const gamma = G.nearestIntegral(state.g); if (gamma) animateG(gamma, absorb); }
+};
 $('dock-toggle').onclick = () => { const o = $('dock').classList.toggle('open'); $('dock-toggle').setAttribute('aria-expanded', String(o)); };
 const toggleSheet = (id, other) => () => { $(id).hidden = !$(id).hidden; $(other).hidden = true; };
 $('settings-open').onclick = toggleSheet('settings', 'help');
