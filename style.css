@@ -163,7 +163,7 @@ body.roots-only #chapter, body.roots-only #inside-hud, body.roots-only #labels {
 @media (min-width: 761px) and (max-width: 1180px) {
   #dock { top: max(14px, env(safe-area-inset-top)); bottom: auto; max-width: calc(100vw - 230px); }
   .morph { width: 180px; }
-  #inspector { top: 82px; }
+  #inspector { top: 82px; max-height: calc(100dvh - 96px); overflow: auto; }
   .sheet { bottom: auto; top: 82px; }
 }
 /* Narrow screens: the tour becomes a bottom sheet, the dock sits above it. */

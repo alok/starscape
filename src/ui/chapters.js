@@ -26,7 +26,7 @@ export const CHAPTERS = [
     eyebrow: 'III · the view from zero',
     title: 'Stand at the origin',
     body: `<p>You are now the zero polynomial. Roots ignore scale, so each polynomial is really a <em>direction</em> from you, and the sky you see is the starscape.</p>
-<p>Nothing here is drawn to look like stars. It is just perspective. Along a line of sight, ${m('k·f')} sits ${m('k')} times farther than ${m('f')} and has ${m('Δ = k²Δ_f')}, so by the inverse-square law a star's brightness falls like ${m('1/|Δ|')} (drawn softened, as ${m('1/|Δ|<sup>β</sup>')} with β = 0.55, so faint stars stay visible): <b>simpler numbers shine brighter.</b> The same rule dims complicated numbers in pictures of algebraic numbers.</p>
+<p>Nothing here is drawn to look like stars. It is just perspective. Along a line of sight, ${m('k·f')} sits ${m('k')} times farther than ${m('f')} and has ${m('Δ = k²Δ_f')}, so by the inverse-square law a star's brightness falls like ${m('1/|Δ|')} (drawn softened, as ${m('1/|Δ|<sup>β</sup>')} with β = 0.55 by default, so faint stars stay visible): <b>simpler numbers shine brighter.</b> The same rule dims complicated numbers in pictures of algebraic numbers.</p>
 <p>Every multiple hides exactly behind its primitive form. Lean your eye off the origin (W A S D, or move your head in VR) and they peek out: parallax separates them.</p>`,
     scene: { view: 'origin', pose: { pitch: Math.PI / 2 - 1e-4, yaw: 0, fov: 92 }, lean: [0, 0, 0], morph: 0, depth: 'deep',
       alpha: { upper: 1, lower: 0.15, exterior: 0.06, null: 0.9 }, cone: true, screen: false, select: [2, 2, 2] },
