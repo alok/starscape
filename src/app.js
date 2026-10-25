@@ -201,7 +201,7 @@ function updateSelectionMarker() {
   const place = (sprite, coef, minPx) => {
     if (!coef) { sprite.visible = false; return null; }
     const st = stars.stage(...coef, rho);
-    if (st.kind === 2 && m > 0.5) { sprite.visible = false; return null; }
+    if ((st.kind === 2 && m > 0.5) || st.hidden) { sprite.visible = false; return null; }
     sprite.position.set(...st.position);
     const d = camera.position.distanceTo(world.localToWorld(sprite.position.clone()));
     const rpx = (st.radius * world.scale.y * camera.projectionMatrix.elements[5] * 0.5 * renderer.domElement.height) / Math.max(d, 1e-3);
@@ -329,12 +329,24 @@ function absorb() {
   const move = p => G.pushforwardExact(gamma, p).map(Number);
   const before = state.selected;
   if (state.selected) state.selected = move(state.selected);
-  if (state.plane) state.plane = Pl.planeFromNormal(move(state.plane.normal));
+  // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one.
+  if (state.plane) { const p = Pl.planeFromNormal(move(state.plane.normal)); state.plane = p.error ? null : p; }
+  writeHash();   // a shared link names the relabeled star, the one now ringed
   setG([...G.identity]);
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selected)}` : `γ = ${matrixText(gamma)}`);
   if (!inspector.el.hidden) inspector.show(state.selected);
 }
+/** With Snap on, glide an off-lattice g to the nearest γ and relabel by it; not inside, where g is where you stand. */
+function settle() {
+  if (!state.snap || rig.mode === 'inside' || state.g.every((x, i) => x === G.identity[i])) return;
+  const gamma = G.nearestIntegral(state.g);
+  if (gamma) animateG(gamma, absorb);
+}
 function applyIntegral(name) {
+  // One generator per glide, as in her viewer: a press while g is still moving is dropped. Built on the midpoint it
+  // would leave g off SL₂(ℤ) for good; composed onto the glide's target, a held key (autorepeat) would run the target
+  // away faster than the sky can follow.
+  if (gAnim) return;
   const gen = { T: G.T, S: G.S, Tinv: G.inverse(G.T) }[name];
   animateG(G.multiply(gen, state.g), () => { if (G.isIntegral(state.g.map(x => Math.round(x * 1e9) / 1e9))) absorb(); });
 }
@@ -369,9 +381,9 @@ function pickAt(e, radiusPx) {
   return stars.pick(p.x, p.y, toClip, canvas.clientHeight, { radiusPx, aspect: camera.aspect });
 }
 
-let skyRoot = null, hoverEvent = null;
+let skyRoot = null, hoverEvent = null, pressG = null;
 new PointerInput(canvas, {
-  start: () => { rig.stopInertia(); },
+  start: () => { rig.stopInertia(); pressG = state.g; },
   classify: e => {
     if (pane.contains(e)) {
       skyRoot = e.shiftKey ? null : pane.rootAt(e);
@@ -405,17 +417,14 @@ new PointerInput(canvas, {
     dirty = true;
   },
   wheel: (f, e) => { if (pane.contains(e)) pane.zoom(f, e); else rig.zoom(f); dirty = true; },
-  end: kind => {
-    // Inside, dragging the ground is walking, and stays where you leave it.
-    if ((kind !== 'sky' && kind !== 'pane-drag') || !state.snap || rig.mode === 'inside') return;
-    const gamma = G.nearestIntegral(state.g);
-    if (gamma) animateG(gamma, absorb);
-  },
+  // Inside, dragging the ground is walking, and stays where you leave it (settle does nothing there).
+  end: kind => { if (kind === 'sky' || kind === 'pane-drag') settle(); },
   click: (e, shift) => {
     const i = pane.contains(e) ? pane.pick(e, isMobile ? 18 : 11) : pickAt(e, isMobile ? 22 : 14);
-    if (i < 0) { if (!shift) select(null); return; }
-    const coef = stars.coefficients(i);
-    if (shift && state.selected) pairWith(coef); else select(coef);
+    if (i >= 0) { const coef = stars.coefficients(i); if (shift && state.selected) pairWith(coef); else select(coef); }
+    else if (!shift) select(null);
+    // Under 6 px a press is a click, but its moves already dragged g a little: settle that as a release would.
+    if (state.g !== pressG && !gAnim) settle();
   },
   hover: e => {
     // At most one pick per animation frame.
@@ -489,6 +498,7 @@ function clearShell() { state.shellK = 0; shell.visible = false; dirty = true; }
 
 /** Select an exact identity. `quiet` (used by the tour) rings it without opening the inspector or cutting planes. */
 function select(coef, { quiet = false } = {}) {
+  clearTimeout(sceneSelect);   // any selection supersedes one the scene was about to make
   state.selected = coef;
   dirty = true;
   writeHash();
@@ -615,8 +625,12 @@ function setEye(h) { rig.setEye(h); $('eye').value = String(h); hud.eyeLabel(); 
 // ---------------------------------------------------------------------------------------------------------------
 // The tour
 
+let sceneSelect;
 function applyScene(s) {
-  if (s.view === 'inside') { goInside(s.pose ?? {}); if (s.select) setTimeout(() => select(s.select, { quiet: true }), 320); return; }
+  // The previous scene's glide or delayed selection must not land in this one: a T still gliding would relabel the
+  // selection this chapter is about to set by a γ from the last.
+  gAnim = null; clearTimeout(sceneSelect);
+  if (s.view === 'inside') { goInside(s.pose ?? {}); if (s.select) sceneSelect = setTimeout(() => select(s.select, { quiet: true }), 320); return; }
   if (s.view === 'origin') goOrigin({ ...(s.pose ?? {}), leanArr: s.lean });
   // A phone has no roots pane beside the 3D view, so a chapter can ask to face its picture there instead.
   else if (s.view === 'outside') goOutside((narrow.matches && s.phonePose) || s.pose || {});
@@ -689,7 +703,12 @@ $('morph').addEventListener('input', e => { const m = Number(e.target.value); st
 $('g-t').onclick = () => applyIntegral('T');
 $('g-tinv').onclick = () => applyIntegral('Tinv');
 $('g-s').onclick = () => applyIntegral('S');
-$('g-snap').onclick = () => { state.snap = !state.snap; $('g-snap').setAttribute('aria-pressed', String(state.snap)); };
+$('g-snap').onclick = () => {
+  state.snap = !state.snap; $('g-snap').setAttribute('aria-pressed', String(state.snap));
+  // Turning it on settles at once, as hers does, rather than leave an off-lattice g under a pressed Snap; a glide
+  // already running ends on its own target.
+  if (!gAnim) settle();
+};
 $('dock-toggle').onclick = () => { const o = $('dock').classList.toggle('open'); $('dock-toggle').setAttribute('aria-expanded', String(o)); };
 const toggleSheet = (id, other) => () => { $(id).hidden = !$(id).hidden; $(other).hidden = true; };
 $('settings-open').onclick = toggleSheet('settings', 'help');
@@ -733,8 +752,13 @@ function writeHash() {
 function readHash() {
   const q = new URLSearchParams(location.hash.slice(1));
   tour.go((Number(q.get('c')) || 1) - 1);
-  const sel = q.get('sel')?.split(',').map(Number);
-  if (sel?.length === 3 && sel.every(Number.isSafeInteger) && sel.some(x => x)) select(sel, { quiet: true });
+  // Plain decimal integers only, at most 15 digits (always safe integers). Number() alone also took hex, exponents,
+  // '1.0' and empty fields, so a truncated '1,,1' silently rang (1, 0, 1).
+  const parts = q.get('sel')?.split(',').map(s => s.trim());
+  const sel = parts?.length === 3 && parts.every(s => /^-?\d{1,15}$/.test(s)) ? parts.map(Number) : null;
+  // A link restores what a click showed: the card, and a dust point's plane. The chapter's own selection stays as
+  // the chapter presents it, quiet.
+  if (sel?.some(x => x) && !sameCoef(sel, CHAPTERS[state.chapter].scene.select)) select(sel);
 }
 
 // ---------------------------------------------------------------------------------------------------------------

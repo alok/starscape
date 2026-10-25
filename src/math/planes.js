@@ -6,6 +6,7 @@ import { boundaryPoint } from './models.js';
 
 const big = x => BigInt(x);
 const abs = x => (x < 0n ? -x : x);
+const MAX_SAFE = BigInt(Number.MAX_SAFE_INTEGER);
 const gcdBig = (a, b) => { a = abs(a); b = abs(b); while (b) [a, b] = [b, a % b]; return a; };
 const cross = (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]];
 
@@ -35,11 +36,13 @@ export function gpuPlaneExact([A, B, C], maxCoefficient) {
   return Number.isSafeInteger(2 * N) && N * Math.max(1, maxCoefficient) < 2 ** 24;
 }
 
-/** The plane of an exterior form n (Δ(n) > 0), with its geodesic endpoints. */
+/** The plane of an exterior form n (Δ(n) > 0, Numbers or BigInts), with its geodesic endpoints. */
 export function planeFromNormal(normal) {
   const n = primitiveBig(normal.map(big)), [a, b, c] = n, delta = b * b - 4n * a * c;
   if (n.every(x => x === 0n)) return { error: 'The zero form has no plane.' };
   if (delta <= 0n) return { error: 'Only a form with two real roots (Δ > 0) cuts a geodesic.' };
+  // The normal is kept as Numbers; past 2⁵³ they would name a nearby plane through neither point.
+  if (n.some(x => abs(x) > MAX_SAFE)) return { error: 'This plane is too large to label exactly.' };
   const A = Number(a), B = Number(b), C = Number(c), d = Number(delta);
   const ends = A === 0 ? [-C / B, Infinity] : [(-B - Math.sqrt(d)) / (2 * A), (-B + Math.sqrt(d)) / (2 * A)];
   return { normal: n.map(Number), endpoints: ends };
@@ -49,7 +52,8 @@ export function planeFromNormal(normal) {
 export function planeThrough(p, q) {
   const raw = cross(dual(p.map(big)), dual(q.map(big)));
   if (raw.every(x => x === 0n)) return { error: 'These two forms have the same root.' };
-  return planeFromNormal(raw.map(Number));
+  // Exact all the way to the primitive part: the raw product can pass 2⁵³ when the primitive normal does not.
+  return planeFromNormal(raw);
 }
 
 /** Euclidean normal of the plane in display coordinates (X, Y, Z) = (−b, a+c, c−a). */

@@ -26,7 +26,10 @@ export function poincareToKlein(p, q) {
 /** Boundary point t ∈ ℝ ∪ {∞} on the unit circle of the Klein (and Poincaré) disk. */
 export function boundaryPoint(t) {
   if (!Number.isFinite(t)) return [0, 1];
-  return [(2 * t) / (1 + t * t), (t * t - 1) / (1 + t * t)];
+  if (Math.abs(t) <= 1) return [(2 * t) / (1 + t * t), (t * t - 1) / (1 + t * t)];
+  // The same point in s = 1/t, where t² cannot overflow (it does past |t| ≈ 1.3e154, giving ∞/∞).
+  const s = 1 / t;
+  return [(2 * s) / (1 + s * s), (1 - s * s) / (1 + s * s)];
 }
 /** The upper half-plane root z of a timelike display vector, via Klein. */
 export const displayToRoot = (X, Y, Z) => kleinToHalfPlane(X / Y, Z / Y);

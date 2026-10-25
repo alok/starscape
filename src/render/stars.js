@@ -230,8 +230,11 @@ export class StarField {
     return stageAt(a, b, c, rho, morph, { H: u.uH.value, HP: u.uHP.value, R0: u.uR0.value, disks: u.uStyle.value < 0.5 });
   }
 
-  /** Is point i drawn with the current filters? Mirrors the shader's `present`, kind alpha and hidden roots at ∞. */
-  visible(i) {
+  /**
+   * Is point i drawn with the current filters? Mirrors the shader's `present`, kind alpha and hidden roots at ∞, in the
+   * picture `morph` under `rho`: the 3D view's by default; the roots pane passes its own.
+   */
+  visible(i, morph = this.uniforms.uMorph.value, rho = this.rho) {
     const u = this.uniforms, [a, b, c] = this.coefficients(i), kind = this.lattice.kinds[i];
     const X = -b, Y = a + c, Z = c - a, inBall = X * X + Y * Y + Z * Z <= u.uBall.value ** 2;
     const deep = kind === 0 || (kind === 3 && a > 0);
@@ -239,9 +242,9 @@ export class StarField {
     const ka = [u.uKindAlpha.value.x, u.uKindAlpha.value.y, u.uKindAlpha.value.z, u.uKindAlpha.value.w][kind];
     if (!present || ka < 0.05) return false;
     if (!this.lattice.primitive[i] && u.uMultiples.value < 0.05) return false;
-    if (kind === 2 && u.uMorph.value > 0.5) return false;
-    if (kind === 3 && this.stage(a, b, c).hidden) return false;
-    if (u.uShell.value > 0.5 && !(kind === 0 && Math.abs(Math.abs(b * b - 4 * a * c) - u.uShell.value) < 0.5)) return false;
+    if (kind === 2 && morph > 0.5) return false;
+    if (kind === 3 && this.stage(a, b, c, rho, morph).hidden) return false;
+    // A shown shell only dims the stars off it (the shader's emphasis), so they stay pickable.
     return true;
   }
 

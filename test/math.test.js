@@ -219,3 +219,62 @@ test('interpolate runs from g0 to g1', () => {
   const m = G.geodesicPoint(z0, z1, 0.5);
   close(G.hyperbolicDistance(z0, m), G.hyperbolicDistance(m, z1), 1e-9);
 });
+
+test('snap: nearestIntegral declines a γ with an entry past 2²⁰, the last translation included', () => {
+  assert.deepEqual(G.nearestIntegral([1, 2 ** 20, 0, 1]), [1, 2 ** 20, 0, 1]);
+  assert.equal(G.nearestIntegral([1, 2 ** 20 + 1, 0, 1]), null);
+  // g·i ≈ 1.615 + 5.9e-8 i: four short steps, then a final translation by −50001 lifts an entry to 1050034.
+  assert.equal(G.nearestIntegral([1962.6200789826382, 6344.253340519605, 1214.955098629434, 3927.394825725361]), null);
+  // Far out, where about one release in five used to slip past the guard.
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 2000; i++) {
+    const y = 10 ** (-12 + 2 * rnd()), s = Math.sqrt(y), th = Math.PI * (2 * rnd() - 1);
+    const g = G.multiply([s, (6 * rnd() - 3) / s, 0, 1 / s], G.rotationAboutI(th)), gamma = G.nearestIntegral(g);
+    if (gamma) assert.ok(G.isIntegral(gamma) && gamma.every(x => Math.abs(x) <= 2 ** 20), `${gamma}`);
+  }
+});
+
+test('interpolate: the snap path runs along the geodesic from g·i to γ·i at constant speed, deep in the cusp too', () => {
+  // Pᵗ of a diagonal matrix is its entrywise power. Computed as (b, l1 − a), the eigenvector of diag(16, 1/16) was
+  // rounding noise, and swapped the eigenvalues.
+  for (const l of [3, 15.989016500355701, 1 / 0.06254293376817475, 255.33, 1e6]) for (const P of [[l, 0, 0, 1 / l], [1 / l, 0, 0, l]]) {
+    const Q = G.symmetricPower(P, 0.5);
+    close(Q[0] / Math.sqrt(P[0]), 1, 1e-12); close(Q[3] / Math.sqrt(P[3]), 1, 1e-12); close(Q[1], 0, 1e-12);
+  }
+  const I = { x: 0, y: 1 }, s = Math.sqrt(255.32891515338883);
+  // A real drag straight down the pane's centre line (g·i = 0.0039i, γ = I), and the centre lifted to 255i, turned.
+  for (const g of [[0.06254293376817475, 0, 0, 15.989016500355701], G.multiply([s, 0, 0, 1 / s], G.rotationAboutI(Math.PI / 2))]) {
+    const gamma = G.nearestIntegral(g), z0 = G.act(g, I), z1 = G.act(gamma, I), D = G.hyperbolicDistance(z0, z1);
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+      const z = G.act(G.interpolate(g, gamma, t), I);
+      close(G.hyperbolicDistance(z0, z), t * D, 1e-6); close(G.hyperbolicDistance(z, z1), (1 - t) * D, 1e-6);
+    }
+  }
+});
+
+test('planeThrough takes the primitive normal exactly, and refuses one past 2⁵³', () => {
+  // The raw cross products pass 2⁵³; rounded before the gcd, the normals missed both stars.
+  for (const [p, q] of [[[954215165853697, 1041176979308545, 925227894702081], [8, -1, 11]],
+    [[-3377699720564908, -1, -4503599627419877], [3, -3, 5]]]) {
+    const plane = P.planeThrough(p, q);
+    assert.deepEqual(plane.normal, [3, -2, -4]);
+    assert.ok(P.onPlane(plane.normal, p) && P.onPlane(plane.normal, q));
+  }
+  // Here the primitive normal has the entry 11256382501459301, which no Number holds.
+  assert.ok(P.planeThrough([108103307, -80, 47636247], [210664668, 594, 196956571]).error);
+  assert.ok(P.planeFromNormal([1n, 2n ** 60n, 1n]).error);
+});
+
+test('boundaryPoint stays on the circle for every t, however large', () => {
+  for (const t of [0, 0.5, -1, 1, 2, -3.7, 1e10, 1e150]) {
+    const [u, v] = M.boundaryPoint(t), d = 1 + t * t;
+    close(u, (2 * t) / d, 1e-15); close(v, (t * t - 1) / d, 1e-15);
+  }
+  // Past √MAX_VALUE ≈ 1.34e154, t² overflows and the direct formula gave [0, NaN].
+  for (const t of [1.3407807929942597e154, 1e155, -1e300, Number.MAX_VALUE]) {
+    const [u, v] = M.boundaryPoint(t);
+    close(u * t, 2, 1e-12); assert.equal(v, 1);
+  }
+  assert.deepEqual(M.boundaryPoint(Infinity), [0, 1]);
+});
