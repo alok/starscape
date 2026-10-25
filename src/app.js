@@ -336,6 +336,10 @@ function absorb() {
   if (!inspector.el.hidden) inspector.show(state.selected);
 }
 function applyIntegral(name) {
+  // One generator per glide, as in her viewer: a press while g is still moving is dropped. Built on the midpoint it
+  // would leave g off SL₂(ℤ) for good; composed onto the glide's target, a held key (autorepeat) would run the target
+  // away faster than the sky can follow.
+  if (gAnim) return;
   const gen = { T: G.T, S: G.S, Tinv: G.inverse(G.T) }[name];
   animateG(G.multiply(gen, state.g), () => { if (G.isIntegral(state.g.map(x => Math.round(x * 1e9) / 1e9))) absorb(); });
 }
