@@ -10,6 +10,9 @@ const KIND_TEXT = {
   upper: ['a star', 'complex roots, a > 0'], lower: ['lower cone', 'complex roots, a < 0'],
   exterior: ['dust', 'two real roots'], null: ['on the cone', 'a double root'],
 };
+// Counting the orbits on Δ = −k enumerates reduced forms, O(k): a few ms at 10⁶, minutes at 10¹¹. Drawn stars
+// have k ≤ 9216; only a typed or relabeled label goes past this.
+const ORBIT_LIMIT = 1e6;
 export function button(label, run) {
   const b = document.createElement('button');
   b.type = 'button'; b.textContent = label; b.addEventListener('click', run);
@@ -57,7 +60,7 @@ export class Inspector {
     acts.replaceChildren();
     if (!preview) {
       if (kind === 'upper' || kind === 'lower') acts.append(button('Look at it from zero', () => this.actions.lookAt(coef)));
-      if (kind === 'upper') acts.append(button('Its shell', () => this.actions.showShell(-d)));
+      if (kind === 'upper' && -d <= ORBIT_LIMIT) acts.append(button('Its shell', () => this.actions.showShell(-d)));
       if (state.plane) acts.append(button('Clear plane', () => this.actions.clearPlane()));
       if (state.shellK) acts.append(button('Clear shell', () => this.actions.clearShell()));
     }
@@ -69,7 +72,9 @@ export class Inspector {
   notes(coef, kind, D) {
     const [a, b, c] = coef, k = F.content(a, b, c), out = [], d = Number(D);
     if (k > 1n) out.push(`${k} × ${tupleText([a / k, b / k, c / k])}: same root, ${k} times farther from the origin, so ${k * k} times dimmer.`);
-    if (kind === 'upper') {
+    if (kind === 'upper' && -d > ORBIT_LIMIT) {
+      out.push(`In one of the finitely many SL₂(ℤ)-orbits of stars on Δ = ${minus(D)} (counted here only for |Δ| ≤ 10⁶).`);
+    } else if (kind === 'upper') {
       // Orbits of stars on Δ = d: h(d) primitive ones, and f times each primitive orbit of discriminant d/f².
       const classes = F.shellClasses(-d), h = classes.filter(c => c.content === 1).length, n = classes.length;
       out.push(k === 1n
