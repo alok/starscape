@@ -10,7 +10,7 @@ export const CHAPTERS = [
     eyebrow: 'I · the lattice',
     title: 'Every quadratic is a point',
     body: `<p>The polynomial ${m('ax² + bx + c')} is the point ${m('(a, b, c)')} of ℤ³. The discriminant ${m('Δ = b² − 4ac')} is a quadratic form of signature (2, 1), so its zero set is a light cone.</p>
-<p>Outside the cone (blue dust) a polynomial has two real roots. On it (mint) a double root. Inside it a complex pair. Drag to turn the lattice and tap any point.</p>`,
+<p>Outside the cone (gray dust) a polynomial has two real roots. On it (white) a double root. Inside it a complex pair. Drag to turn the lattice and tap any point.</p>`,
     scene: { view: 'outside', pose: { radius: 23, theta: 0.75, phi: 1.2, target: [0, 0.4, 0], fov: 40 }, morph: 0, depth: 0, ball: 6,
       alpha: { upper: 1, lower: 0.8, exterior: 0.75, null: 1 }, cone: true, screen: false },
   },
@@ -96,7 +96,7 @@ export const CHAPTERS = [
     eyebrow: 'VIII · rational geodesics',
     title: 'The necklaces',
     body: `<p>A plane through the origin meets the cone in a line of the Klein model, so its roots trace a geodesic. Planes spanned by lattice points give the <em>rational geodesics</em>: the necklaces that structure the picture (Obs. 4.12).</p>
-<p>Tap any blue dust point for its plane, or Shift-tap two stars for the necklace through both. The pair ${m('x² + 1')}, ${m('x² + x + 1')} spans ${m('2a − 2c = 0')} again: the unit circle, from −1 to 1.</p>`,
+<p>Tap any gray dust point for its plane, or Shift-tap two stars for the necklace through both. The pair ${m('x² + 1')}, ${m('x² + x + 1')} spans ${m('2a − 2c = 0')} again: the unit circle, from −1 to 1.</p>`,
     scene: { view: 'outside', pose: { radius: 18, theta: 1.1, phi: 1.0, target: [0, 3, 0] }, morph: 0, depth: 'deep',
       alpha: { upper: 1, lower: 0.15, exterior: 0.8, null: 0.8 }, cone: true, screen: true, shell: 0, plane: [1, 0, -1], select: [1, 1, 1] },
   },
