@@ -89,6 +89,9 @@ body:not(.split) #film .cap { width: min(640px, calc(100vw - 68px)); }
 #film .cap.top { bottom: auto; top: 30px; }
 /* The app's readout wraps at a third of the 3D view in split; in a film the bottom is free while captions sit on top. */
 body.film.split #g-readout { max-width: calc(100vw - var(--pane-w) - 80px) !important; }
+/* Captions are wider than the tour card that the app's wide split layout makes room for, so the low inspector card
+   would slide under them: keep it at the top, as at narrower widths. */
+body.film.split #inspector { top: 120px; bottom: auto; }
 #film .kick { font: 600 11.5px/1 var(--sans); letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
 #film .title { font: 400 29px/1.12 var(--serif); color: #f2f5fb; margin: 9px 0 0; }
 #film .body { font: 400 15.5px/1.48 var(--sans); color: rgba(220, 228, 242, 0.86); margin: 8px 0 0; }
