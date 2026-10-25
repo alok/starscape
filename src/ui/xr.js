@@ -269,9 +269,10 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     const hit = uiHit(c);
     if (hit?.grabber) { c.userData.held = { grab: true, offset: ui.group.position.clone().sub(hit.point), distance: hit.distance }; return; }
     if (hit) { c.userData.held = { ui: hit }; return; }
-    const star = pickRay(c);
-    // Keep the star's label, not its index: a new catalogue can renumber the points while it is held.
-    c.userData.held = { z: rootOfRay(c), moved: 0, start: performance.now(), star, coef: star >= 0 ? stars.coefficients(star) : null, up: upOf(c), roll: 0, twisting: false };
+    const picked = pickRay(c), coef = picked >= 0 ? stars.coefficients(picked) : null, star = coef ? picked : -1;
+    // Keep the star's label, not its index: a new catalogue can renumber the points while it is held. A star whose
+    // label is past 2⁵³ cannot be named, so it is not held as one.
+    c.userData.held = { z: rootOfRay(c), moved: 0, start: performance.now(), star, coef, up: upOf(c), roll: 0, twisting: false };
     // Two points make a line: a star pinched in each hand spans its necklace.
     const other = controllers.find(o => o !== c && o.userData.held?.star >= 0);
     if (star >= 0 && other) {
@@ -290,7 +291,8 @@ export function setupXR({ renderer, scene, world, stars, state, api, markDirty, 
     if (h.twisting) { if (state.snap && api.rig.mode !== 'inside') { const gamma = G.nearestIntegral(state.g); if (gamma) animateG(gamma, absorb); } return; }
     if (h.moved < 0.02 && performance.now() - h.start < 650) {
       const i = pickRay(c);
-      api.select(i >= 0 ? stars.coefficients(i) : null);
+      const coef = i >= 0 ? stars.coefficients(i) : null;
+      if (coef || i < 0) api.select(coef);
       ui.card.render();
     } else if (state.snap && api.rig.mode !== 'inside') {
       const gamma = G.nearestIntegral(state.g);

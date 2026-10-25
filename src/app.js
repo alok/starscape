@@ -432,7 +432,9 @@ new PointerInput(canvas, {
   end: kind => { if (kind === 'sky' || kind === 'pane-drag') settle(); },
   click: (e, shift) => {
     const i = pane.contains(e) ? pane.pick(e, isMobile ? 18 : 11) : pickAt(e, isMobile ? 22 : 14);
-    if (i >= 0) { const coef = stars.coefficients(i); if (shift && state.selected) pairWith(coef); else select(coef); }
+    const coef = i >= 0 ? stars.coefficients(i) : null;
+    if (coef) { if (shift && state.selected) pairWith(coef); else select(coef); }
+    else if (i >= 0) flash('This star’s label is past 2⁵³, too large to name exactly; walk back toward i to select it.');
     else if (!shift) select(null);
     // Under 6 px a press is a click, but its moves already dragged g a little: settle that as a release would.
     if (state.g !== pressG && !gAnim) settle();
@@ -456,12 +458,13 @@ new PointerInput(canvas, {
 
 const keys = new HeldKeys({
   // First-person vantages take over the movement keys while they are held.
-  owns: k => (rig.mode === 'inside' && /^(arrow(up|down|left|right)|[wasdqe])$/.test(k)) || (rig.mode === 'origin' && /^[wasdqe]$/.test(k)),
+  // While a change of vantage is under the veil, the arrows still turn pages (rig.mode has not caught up yet).
+  owns: k => !pendingFade && (rig.mode === 'inside' && /^(arrow(up|down|left|right)|[wasdqe])$/.test(k)) || (rig.mode === 'origin' && /^[wasdqe]$/.test(k)),
   press: k => {
     if (k === 'ArrowRight') tour.go(state.chapter + 1);
     else if (k === 'ArrowLeft') tour.go(state.chapter - 1);
-    else if (k === 'o' || k === 'O') (rig.mode === 'origin' ? goOutside() : goOrigin());
-    else if (k === 'i' || k === 'I') (rig.mode === 'inside' ? goOrigin() : goInside());
+    else if (k === 'o' || k === 'O') { finishFade(); (rig.mode === 'origin' ? goOutside() : goOrigin()); }
+    else if (k === 'i' || k === 'I') { finishFade(); (rig.mode === 'inside' ? goOrigin() : goInside()); }
     else if (k === 'r' || k === 'R') toggleSplit();
     else if (k === 'p' || k === 'P') setMorph((Math.round(tw.get('morph')) + 1) % 4);
     else if (k === 't') applyIntegral('T');
@@ -506,6 +509,8 @@ const inspector = new Inspector({
   },
 });
 function clearPlane() { state.plane = null; dirty = true; }
+/** Re-render an open card (not a hover preview) after a scene changed what it describes: its plane, shell or g. */
+function refreshCard() { if (!inspector.el.hidden && !inspector.el.classList.contains('preview')) inspector.show(state.selected); }
 function clearShell() { state.shellK = 0; shell.visible = false; dirty = true; }
 
 /** Select an exact identity. `quiet` (used by the tour) rings it without opening the inspector or cutting planes. */
@@ -533,10 +538,8 @@ function pairWith(coef) {
   dirty = true;
 }
 function lookAtStar(coef) {
-  // Placed through the catalogue's frame, as the ring is. Leaving Inside settles g onto the lattice (goOrigin), and the
-  // star then sits where ρ(γ) puts it, so aim there.
-  const settling = rig.mode === 'inside' && state.snap;
-  const v = new THREE.Vector3(...G.apply3(stars.relative((settling && G.nearestIntegral(state.g)) || state.g), F.toDisplay(...stars.framed(coef))));
+  // Placed through the catalogue's frame, as the ring is: far from i, ρ(g) on the app's label cancels.
+  const v = new THREE.Vector3(...G.apply3(stars.relative(state.g), F.toDisplay(...stars.framed(coef))));
   if (v.y < 0) v.negate();
   v.normalize();
   goOrigin({ pitch: Math.min(Math.asin(Math.min(1, v.y)), Math.PI / 2 - 1e-4), yaw: Math.atan2(-v.x, -v.z), fov: 70 });
@@ -586,11 +589,12 @@ function setWorldFrame(inside) {
   camera.near = inside ? 0.002 : 0.02; camera.updateProjectionMatrix();
 }
 /** A short fade through black. `always` fades even without reduced motion (changing worlds, not just views). */
-let pendingFade = null;
+let pendingFade = null, veilTimer;
 function fade(fn, always = false) {
   if (!always && !rig.reducedMotion) { fn(); return; }
+  clearTimeout(veilTimer);   // the last fade's lift must not take this one's veil away
   $('veil').classList.add('on');
-  const timer = setTimeout(() => { pendingFade = null; fn(); dirty = true; setTimeout(() => $('veil').classList.remove('on'), 80); }, 280);
+  const timer = setTimeout(() => { pendingFade = null; fn(); dirty = true; veilTimer = setTimeout(() => $('veil').classList.remove('on'), 80); }, 280);
   pendingFade = { timer, fn };
 }
 /** Land a change of vantage still under the veil now, so the next one starts from where that one was going. */
@@ -617,10 +621,10 @@ function goInside(pose = {}) {
       .forEach(([k, v]) => tw.set(k, v, 0));
     $('morph').value = '2'; state.morphTarget = 2;
     clearPlane(); clearShell();
-    if (!inspector.el.hidden) inspector.show(state.selected);   // the card must not offer a plane or shell just cleared
     rig.go('inside', pose, 0);
     // Start inside a triangle, not on an edge: at the center of (0, 1, ∞), on the star x² − x + 1.
     setG(G.toI({ x: 0.5, y: Math.sqrt(3) / 2 }));
+    refreshCard();
     hud.reset(); hud.show(true); hud.eyeLabel();
     pane.resetView();
     $('eye').value = String(rig.inside.eye);
@@ -629,8 +633,7 @@ function goInside(pose = {}) {
 function goOrigin(pose = {}) {
   finishFade();
   const go = () => { setView('origin'); rig.go('origin', { ...pose, lean: new THREE.Vector3(...(pose.leanArr ?? [0, 0, 0])) }); };
-  // Out of Inside the walked g is off the lattice: settle it as a release would (after go(), which leaves 'inside').
-  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); tw.set('screen', 1, 0); setMorph(1, 0); go(); rig.apply(); settle(); }, true);
+  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); tw.set('screen', 1, 0); setMorph(1, 0); go(); rig.apply(); }, true);
   else fade(go);
   dirty = true;
 }
@@ -639,7 +642,7 @@ function goOutside(pose = {}) {
   const o = { ...pose };
   if (Array.isArray(o.target)) o.target = new THREE.Vector3(...o.target);
   const go = () => { setView('outside'); rig.go('outside', o); };
-  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); setMorph(0, 0); go(); settle(); }, true);
+  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); setMorph(0, 0); go(); }, true);
   else fade(go);
   dirty = true;
 }
@@ -673,6 +676,7 @@ function applyScene(s) {
   if (s.shell !== undefined) { if (s.shell) { state.shellK = s.shell; shell.userData.set(s.shell, 40); } else clearShell(); }
   if (s.select !== undefined) select(s.select, { quiet: true });
   if (state.g.some((x, i) => x !== G.identity[i])) setG([...G.identity]);
+  refreshCard();
   dirty = true;
 }
 const narrow = matchMedia('(max-width: 760px)');
