@@ -14,7 +14,7 @@ import { Rig } from './views/rig.js';
 import { PointerInput, HeldKeys } from './views/input.js';
 import { Tweens } from './core/tweens.js';
 import { CHAPTERS } from './ui/chapters.js';
-import { Inspector, button } from './ui/inspector.js';
+import { Inspector, button, exactLabel } from './ui/inspector.js';
 import { InsideHud } from './ui/inside.js';
 import { RootsPane } from './ui/rootspane.js';
 import { matrixText, tupleText, complexText } from './ui/format.js';
@@ -338,6 +338,8 @@ function absorb() {
   // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one. It stays in
   // BigInt until planeFromNormal checks it: rounded to doubles first, it could pass as some other plane.
   if (state.plane) { const p = Pl.planeFromNormal(G.pushforwardExact(gamma, state.plane.normal)); state.plane = p.error ? null : p; }
+  // The hovered star is held by its label too: the one under the pointer now has the relabeled one.
+  if (state.hovered) state.hovered = G.pushforwardExact(gamma, state.hovered).map(Number);
   writeHash();   // a shared link names the relabeled star, the one now ringed
   stars.absorb(gamma);   // the buffer's points get the same new labels, so nothing on screen changes
   setG([...G.identity]);
@@ -584,10 +586,19 @@ function setWorldFrame(inside) {
   camera.near = inside ? 0.002 : 0.02; camera.updateProjectionMatrix();
 }
 /** A short fade through black. `always` fades even without reduced motion (changing worlds, not just views). */
+let pendingFade = null;
 function fade(fn, always = false) {
   if (!always && !rig.reducedMotion) { fn(); return; }
   $('veil').classList.add('on');
-  setTimeout(() => { fn(); dirty = true; setTimeout(() => $('veil').classList.remove('on'), 80); }, 280);
+  const timer = setTimeout(() => { pendingFade = null; fn(); dirty = true; setTimeout(() => $('veil').classList.remove('on'), 80); }, 280);
+  pendingFade = { timer, fn };
+}
+/** Land a change of vantage still under the veil now, so the next one starts from where that one was going. */
+function finishFade() {
+  if (!pendingFade) return;
+  const { timer, fn } = pendingFade;
+  pendingFade = null; clearTimeout(timer);
+  fn(); dirty = true; $('veil').classList.remove('on');
 }
 function leaveInside() {
   pane.inside = null;
@@ -596,6 +607,7 @@ function leaveInside() {
   hud.show(false);
 }
 function goInside(pose = {}) {
+  finishFade();
   if (rig.mode === 'inside') { rig.go('inside', pose, 0.8); return; }
   fade(() => {
     gAnim = null;   // a T or S still gliding would carry g off the triangle's center
@@ -605,6 +617,7 @@ function goInside(pose = {}) {
       .forEach(([k, v]) => tw.set(k, v, 0));
     $('morph').value = '2'; state.morphTarget = 2;
     clearPlane(); clearShell();
+    if (!inspector.el.hidden) inspector.show(state.selected);   // the card must not offer a plane or shell just cleared
     rig.go('inside', pose, 0);
     // Start inside a triangle, not on an edge: at the center of (0, 1, ∞), on the star x² − x + 1.
     setG(G.toI({ x: 0.5, y: Math.sqrt(3) / 2 }));
@@ -614,16 +627,19 @@ function goInside(pose = {}) {
   }, true);
 }
 function goOrigin(pose = {}) {
+  finishFade();
   const go = () => { setView('origin'); rig.go('origin', { ...pose, lean: new THREE.Vector3(...(pose.leanArr ?? [0, 0, 0])) }); };
-  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); tw.set('screen', 1, 0); setMorph(1, 0); go(); rig.apply(); }, true);
+  // Out of Inside the walked g is off the lattice: settle it as a release would (after go(), which leaves 'inside').
+  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); tw.set('screen', 1, 0); setMorph(1, 0); go(); rig.apply(); settle(); }, true);
   else fade(go);
   dirty = true;
 }
 function goOutside(pose = {}) {
+  finishFade();
   const o = { ...pose };
   if (Array.isArray(o.target)) o.target = new THREE.Vector3(...o.target);
   const go = () => { setView('outside'); rig.go('outside', o); };
-  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); setMorph(0, 0); go(); }, true);
+  if (rig.mode === 'inside') fade(() => { leaveInside(); tw.set('cone', 1, 0); setMorph(0, 0); go(); settle(); }, true);
   else fade(go);
   dirty = true;
 }
@@ -760,7 +776,10 @@ $('h-clear').onclick = () => { hud.reset(); dirty = true; };
 
 function writeHash() {
   const parts = [`c=${state.chapter + 1}`];
-  if (state.selected) parts.push(`sel=${state.selected.join(',')}`);
+  // The exact label, in decimal; one past 15 digits would not survive readHash, so it is left out rather than name
+  // another star (it takes dozens of relabels to get there).
+  const sel = state.selected && exactLabel(state.selected, state);
+  if (sel && sel.every(x => (x < 0 ? -x : x) <= 999999999999999)) parts.push(`sel=${sel.map(String).join(',')}`);
   history.replaceState(null, '', '#' + parts.join('&'));
 }
 function readHash() {
