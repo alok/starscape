@@ -331,6 +331,7 @@ function absorb() {
   if (state.selected) state.selected = move(state.selected);
   // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one.
   if (state.plane) { const p = Pl.planeFromNormal(move(state.plane.normal)); state.plane = p.error ? null : p; }
+  writeHash();   // a shared link names the relabeled star, the one now ringed
   setG([...G.identity]);
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selected)}` : `γ = ${matrixText(gamma)}`);
   if (!inspector.el.hidden) inspector.show(state.selected);
