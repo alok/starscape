@@ -52,7 +52,7 @@ export default {
       instant(on) { S.rig.reducedMotion = S.tweens.reducedMotion = on; },
       ease: u => u * u * (3 - 2 * u),
       /** One factor on every exposure below, to retune the whole film at once after a change to the app's look. */
-      gain: 1,
+      gain: 0.8,
       /** Set the app's Brightness, β and Star size. */
       set(o) { film.look({ ...o, exposure: (o.exposure ?? 1) * R.gain }); },
       /** Ease Brightness, β and Star size from a to b as u goes 0 → 1. */
