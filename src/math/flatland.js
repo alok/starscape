@@ -86,11 +86,13 @@ export class CuttingSequence {
  * Flatlander judges distance; without it every direction would end on some faint star (Olbers' paradox in 2D).
  */
 export function flatlandRetina(stars, g, { width = 720, r0 = 0.5, fog = 1.0, beta = 1, palette } = {}) {
-  const n = stars.lattice.count, rho = G.displayPushforward(g), hits = [];
+  const n = stars.lattice.count, rho = G.displayPushforward(g), hits = [], shell = stars.uniforms.uShell.value;
   for (let i = 0; i < n; i++) {
     if (stars.lattice.kinds[i] !== 0 || !stars.visible(i)) continue;
     const [a, b, c] = stars.coefficients(i);
     if (!stars.lattice.primitive[i]) continue;   // multiples share the point
+    // A shown shell only dims the sky's other stars, but a Flatlander sees just the shell (one star hides the next).
+    if (shell > 0.5 && Math.abs(4 * a * c - b * b - shell) >= 0.5) continue;
     const X0 = -b, Y0 = a + c, Z0 = c - a;
     const X = rho[0] * X0 + rho[1] * Y0 + rho[2] * Z0, Y = rho[3] * X0 + rho[4] * Y0 + rho[5] * Z0, Z = rho[6] * X0 + rho[7] * Y0 + rho[8] * Z0;
     const ku = X / Y, kv = Z / Y, kk = Math.min(ku * ku + kv * kv, 1 - 1e-12);

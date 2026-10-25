@@ -36,7 +36,7 @@ export function gcd(a, b) {
   return a;
 }
 export const content = (a, b, c) => gcd(gcd(a, b), c);
-export const isPrimitive = (a, b, c) => content(a, b, c) === 1;
+export const isPrimitive = (a, b, c) => Number(content(a, b, c)) === 1;   // Numbers or BigInts (all of one type)
 
 /** The form in the source viewer's typography: x² + x + 1, 2x² − 2x + 4, −x² + x − 2. Multiples stay unreduced. */
 export function polynomialText(a, b, c) {
@@ -138,7 +138,9 @@ export const depthFrom = (x, y, a, b, c) => y * a + (a * x * x + b * x + c) / y;
  * Y′ = depthFrom(x, y, …) and display length |v′|² = Δ + 2Y′² (since X′² + Z′² − Y′² = Δ), so the catalogue is
  *  - every star (Δ < 0, a > 0) with Y′ ≤ depth,
  *  - every upper-cone form k(qx − p)² (Δ = 0, a + c > 0) with Y′ ≤ depth: its half-plane picture is a Ford circle.
- *    Only k ≤ depth is kept; that bites only high in a cusp, where (0, 0, k) has Y′ = k/y and would be unbounded,
+ *    Only k ≤ depth is kept. That cuts (0, 0, k), whose Y′ = k/y is unbounded up the cusp, at Y′ = depth/y once the
+ *    viewpoint's y passes padded/drawn depth (about 1.3): the lattice view's ruling toward ∞ then ends early (the
+ *    half-plane hides it at ∞ anyway). The cap is SL₂(ℤ)-invariant, so snapping never changes what is drawn,
  *  - every other nonzero point with |v′| ≤ ball (the "dust"), at most maxDust of them (again only a cusp can reach it).
  * At x + iy = i this is the old fixed crop: stars and cone with a + c ≤ depth, the rest in the display ball.
  *
