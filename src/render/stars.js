@@ -205,14 +205,25 @@ const edge = (x, bound) => 1 - smoothstep(0.86 * bound, bound, x);
 function reduce(z) {
   let m = [1, 0, 0, 1];
   for (let step = 0; step < 100; step++) {
-    if (!(Number.isFinite(z.x) && z.y > 0 && Number.isFinite(z.y)) || m.some(x => Math.abs(x) > 2 ** 24)) return null;
+    if (!(Number.isFinite(z.x) && z.y > 0 && Number.isFinite(z.y))) return null;
     const n = Math.round(z.x);
     if (n) { z = { x: z.x - n, y: z.y }; m = G.multiply([1, -n, 0, 1], m); }
+    // nearestIntegral's bound, checked after every translation including the last: past it ρ(γ⁻¹)·f, the app's label
+    // of a buffered point, is no longer exact in doubles (see exactFrame).
+    if (m.some(x => Math.abs(x) > 2 ** 20)) return null;
     if (z.x * z.x + z.y * z.y >= 1 - 1e-12) return { m: m.map(x => x + 0), z };
     z = G.act(G.S, z); m = G.multiply(G.S, m);
   }
   return null;
 }
+
+/**
+ * Can a catalogue whose labels reach `maxCoefficient` sit in frame γ = m? coefficients(i) computes the app's label
+ * ρ(γ⁻¹)·f in doubles: three products of an entry of ρ (at most 2·max|m|²) and a label, summed, so it is exact while
+ * 6·max|m|²·maxCoefficient < 2⁵³. Past that a click would name a neighbor of the star drawn.
+ */
+const exactFrame = (m, maxCoefficient) => 6 * Math.max(...m.map(Math.abs)) ** 2 * maxCoefficient < 2 ** 53;
+const sameFrame = (m, n) => !!n && m.every((x, j) => x === n[j]);
 
 export class StarField {
   /** `reach`: the drawn bounds, { depth, ball } (see setReach). */
@@ -283,7 +294,8 @@ export class StarField {
   setG(g) {
     this.g = g;
     this.rho = G.displayPushforward(g);   // for the app's labels (stage, coefficients)
-    const w = G.act(G.inverse(g), I), here = G.act(this.frame, w), r = reduce(w);
+    const w = G.act(G.inverse(g), I), here = G.act(this.frame, w), r0 = reduce(w);
+    const r = r0 && exactFrame(r0.m, this.lattice.maxCoefficient) ? r0 : null;
     let drift = G.hyperbolicDistance(here, this.view);
     // An integral move needs no new catalogue, only another frame: the catalogue seen from γ·z is ρ(γ) of the one
     // seen from z. So after a snap, or a cut to T or S, the frame that brings the viewpoint back is free. Either frame
@@ -321,9 +333,10 @@ export class StarField {
   /** Enumerate the catalogue around the current viewpoint, off the main thread when possible. One at a time. */
   rebase() {
     if (this.pending) return;
-    // Out of reach of exact labels (dozens of units from i) the sky keeps its last catalogue.
+    // Out of reach of exact labels (dozens of units from i) the sky keeps its last catalogue. A frame refused once
+    // (its catalogue's labels too large for it) is not asked for again.
     const r = reduce(G.act(G.inverse(this.g), I));
-    if (!r) return;
+    if (!r || sameFrame(r.m, this.refused)) return;
     const job = { id: ++this.jobs, frame: r.m, view: r.z, reach: { ...this.reach } };
     this.pending = job;
     if (this.worker) this.worker.postMessage({ id: job.id, x: job.view.x, y: job.view.y, ...job.reach });
@@ -331,6 +344,7 @@ export class StarField {
   }
   receive(job, L) {
     this.pending = null;
+    if (!exactFrame(job.frame, L.maxCoefficient)) { this.refused = job.frame; return; }
     this.setLattice(L, job.frame, job.view);
     this.onRebuild?.();
   }
