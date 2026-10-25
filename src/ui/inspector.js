@@ -71,7 +71,8 @@ export class Inspector {
   /** Sentences about the exact label `coef` (BigInts) of kind `kind` and discriminant `D`. */
   notes(coef, kind, D) {
     const [a, b, c] = coef, k = F.content(a, b, c), out = [], d = Number(D);
-    if (k > 1n) out.push(`${k} × ${tupleText([a / k, b / k, c / k])}: same root, ${k} times farther from the origin, so ${k * k} times dimmer.`);
+    // Physics, not pixels: the picture dims k·f by k^(2β), which is k² only at β = 1.
+    if (k > 1n) out.push(`${k} × ${tupleText([a / k, b / k, c / k])}: same ${kind === 'exterior' ? 'roots' : 'root'}, ${k} times farther from the origin, so hidden behind it; by the inverse-square law you receive 1/${k * k} of its light.`);
     if (kind === 'upper' && -d > ORBIT_LIMIT) {
       out.push(`In one of the finitely many SL₂(ℤ)-orbits of stars on Δ = ${minus(D)} (counted here only for |Δ| ≤ 10⁶).`);
     } else if (kind === 'upper') {
