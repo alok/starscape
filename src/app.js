@@ -336,6 +336,12 @@ function absorb() {
   flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selected)}` : `γ = ${matrixText(gamma)}`);
   if (!inspector.el.hidden) inspector.show(state.selected);
 }
+/** With Snap on, glide an off-lattice g to the nearest γ and relabel by it; not inside, where g is where you stand. */
+function settle() {
+  if (!state.snap || rig.mode === 'inside' || state.g.every((x, i) => x === G.identity[i])) return;
+  const gamma = G.nearestIntegral(state.g);
+  if (gamma) animateG(gamma, absorb);
+}
 function applyIntegral(name) {
   // One generator per glide, as in her viewer: a press while g is still moving is dropped. Built on the midpoint it
   // would leave g off SL₂(ℤ) for good; composed onto the glide's target, a held key (autorepeat) would run the target
@@ -375,9 +381,9 @@ function pickAt(e, radiusPx) {
   return stars.pick(p.x, p.y, toClip, canvas.clientHeight, { radiusPx, aspect: camera.aspect });
 }
 
-let skyRoot = null, hoverEvent = null;
+let skyRoot = null, hoverEvent = null, pressG = null;
 new PointerInput(canvas, {
-  start: () => { rig.stopInertia(); },
+  start: () => { rig.stopInertia(); pressG = state.g; },
   classify: e => {
     if (pane.contains(e)) {
       skyRoot = e.shiftKey ? null : pane.rootAt(e);
@@ -411,17 +417,14 @@ new PointerInput(canvas, {
     dirty = true;
   },
   wheel: (f, e) => { if (pane.contains(e)) pane.zoom(f, e); else rig.zoom(f); dirty = true; },
-  end: kind => {
-    // Inside, dragging the ground is walking, and stays where you leave it.
-    if ((kind !== 'sky' && kind !== 'pane-drag') || !state.snap || rig.mode === 'inside') return;
-    const gamma = G.nearestIntegral(state.g);
-    if (gamma) animateG(gamma, absorb);
-  },
+  // Inside, dragging the ground is walking, and stays where you leave it (settle does nothing there).
+  end: kind => { if (kind === 'sky' || kind === 'pane-drag') settle(); },
   click: (e, shift) => {
     const i = pane.contains(e) ? pane.pick(e, isMobile ? 18 : 11) : pickAt(e, isMobile ? 22 : 14);
-    if (i < 0) { if (!shift) select(null); return; }
-    const coef = stars.coefficients(i);
-    if (shift && state.selected) pairWith(coef); else select(coef);
+    if (i >= 0) { const coef = stars.coefficients(i); if (shift && state.selected) pairWith(coef); else select(coef); }
+    else if (!shift) select(null);
+    // Under 6 px a press is a click, but its moves already dragged g a little: settle that as a release would.
+    if (state.g !== pressG && !gAnim) settle();
   },
   hover: e => {
     // At most one pick per animation frame.
@@ -702,10 +705,9 @@ $('g-tinv').onclick = () => applyIntegral('Tinv');
 $('g-s').onclick = () => applyIntegral('S');
 $('g-snap').onclick = () => {
   state.snap = !state.snap; $('g-snap').setAttribute('aria-pressed', String(state.snap));
-  // Turning it on settles at once, as hers does, rather than showing an off-lattice g under a pressed Snap. Not inside,
-  // where g is where you stand, nor mid-glide, which ends on its own target.
-  const off = state.g.some((x, i) => x !== G.identity[i]);
-  if (state.snap && off && rig.mode !== 'inside' && !gAnim) { const gamma = G.nearestIntegral(state.g); if (gamma) animateG(gamma, absorb); }
+  // Turning it on settles at once, as hers does, rather than leave an off-lattice g under a pressed Snap; a glide
+  // already running ends on its own target.
+  if (!gAnim) settle();
 };
 $('dock-toggle').onclick = () => { const o = $('dock').classList.toggle('open'); $('dock-toggle').setAttribute('aria-expanded', String(o)); };
 const toggleSheet = (id, other) => () => { $(id).hidden = !$(id).hidden; $(other).hidden = true; };
