@@ -1,13 +1,13 @@
 # Starscape on FloatLib: the shader's float32 arithmetic is exact
 
-The browser draws ~470,000 lattice points on the GPU, where the only arithmetic is IEEE binary32. Two integer
+The browser draws a catalogue of lattice points on the GPU (about 220,000 at the default depth, up to about 600,000), where the only arithmetic is IEEE binary32. Two integer
 quantities are recomputed there, and `StarscapeFloat.lean` proves, on [FloatLib](https://github.com/lean-dojo/FloatLib)'s
 binary32 rounding (`Model.roundAt binary32`, nearest-even), that the shader gets them right:
 
 | Theorem | Says |
 |---|---|
 | `fl_int` | every integer of size below 2²⁴ is a binary32 value, so rounding fixes it |
-| `deltaF_eq_of_le` | the shader's `b * b - 4.0 * a * c` is exactly Δ for coefficients up to 1024 (Starscape draws up to 96) |
+| `deltaF_eq_of_le` | the shader's `b * b - 4.0 * a * c` is exactly Δ for coefficients up to 1024 (at rest the catalogue's reach 75, or 104 at the densest; the float32 test replays a fixed depth-96 crop of about 470,000 points; see GUIDE §6.1 for up a cusp) |
 | `planeF_decides` | the plane test `abs(-2.0*n.z*a + n.y*b - 2.0*n.x*c) < 0.5` is true exactly on the plane, whenever each of its three products is below 2²⁴ — even when the partial sum exceeds 2²⁴ and rounds |
 | `planeF_decides_of_le` | the same from bounds: normal factors ≤ N, coefficients ≤ M, N·M < 2²⁴ |
 
