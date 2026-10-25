@@ -749,8 +749,11 @@ function writeHash() {
 function readHash() {
   const q = new URLSearchParams(location.hash.slice(1));
   tour.go((Number(q.get('c')) || 1) - 1);
-  const sel = q.get('sel')?.split(',').map(Number);
-  if (sel?.length === 3 && sel.every(Number.isSafeInteger) && sel.some(x => x)) select(sel, { quiet: true });
+  // Plain decimal integers only, at most 15 digits (always safe integers). Number() alone also took hex, exponents,
+  // '1.0' and empty fields, so a truncated '1,,1' silently rang (1, 0, 1).
+  const parts = q.get('sel')?.split(',').map(s => s.trim());
+  const sel = parts?.length === 3 && parts.every(s => /^-?\d{1,15}$/.test(s)) ? parts.map(Number) : null;
+  if (sel?.some(x => x)) select(sel, { quiet: true });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
