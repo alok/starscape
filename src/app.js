@@ -495,6 +495,7 @@ function clearShell() { state.shellK = 0; shell.visible = false; dirty = true; }
 
 /** Select an exact identity. `quiet` (used by the tour) rings it without opening the inspector or cutting planes. */
 function select(coef, { quiet = false } = {}) {
+  clearTimeout(sceneSelect);   // any selection supersedes one the scene was about to make
   state.selected = coef;
   dirty = true;
   writeHash();
@@ -753,7 +754,9 @@ function readHash() {
   // '1.0' and empty fields, so a truncated '1,,1' silently rang (1, 0, 1).
   const parts = q.get('sel')?.split(',').map(s => s.trim());
   const sel = parts?.length === 3 && parts.every(s => /^-?\d{1,15}$/.test(s)) ? parts.map(Number) : null;
-  if (sel?.some(x => x)) select(sel, { quiet: true });
+  // A link restores what a click showed: the card, and a dust point's plane. The chapter's own selection stays as
+  // the chapter presents it, quiet.
+  if (sel?.some(x => x) && !sameCoef(sel, CHAPTERS[state.chapter].scene.select)) select(sel);
 }
 
 // ---------------------------------------------------------------------------------------------------------------

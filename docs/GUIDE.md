@@ -218,7 +218,7 @@ At the Poincaré stage the formula `(1 − |p|²)` is negative for exterior poin
 - **Inside:** drag the ground to walk (same drag, but no snap), W A S D or arrows to walk, Q/E or ←/→ to turn, and the eye slider down to a Flatlander.
 - **Roots pane:** drag to Möbius-drag, Shift-drag or right-drag to pan, scroll to zoom about the pointer. Click selects, and Shift-click a second star pairs them.
 
-`select(coef, { quiet })` is the single entry point. A *quiet* selection (from the tour) rings a star without opening the inspector or cutting planes, which keeps first impressions calm. Everything else (pane rings, 3D ring, inspector, URL hash) derives from `state.selected`.
+`select(coef, { quiet })` is the single entry point. A *quiet* selection (from the tour) rings a star without opening the inspector or cutting planes, which keeps first impressions calm. A shared link's `sel=` opens as a click would (the card, and a dust point's plane), unless it is the chapter's own selection. Everything else (pane rings, 3D ring, inspector, URL hash) derives from `state.selected`, and the hash follows it through relabels.
 
 Motion respects `prefers-reduced-motion`: transitions become a short fade through black, and nothing moves on its own. Katherine Stange has vertigo; this is not optional.
 
