@@ -6,6 +6,11 @@ import { PALETTES, deltaPosition } from '../render/palette.js';
 import { minus, tupleText, complexText } from './format.js';
 
 const $ = id => document.getElementById(id);
+/** A row of the card, hidden with its label when `text` is null. */
+const row = (id, text) => {
+  $(id).hidden = $(`${id}-label`).hidden = text == null;
+  $(id).textContent = text ?? '';
+};
 const KIND_TEXT = {
   upper: ['a star', 'complex roots, a > 0'], lower: ['lower cone', 'complex roots, a < 0'],
   exterior: ['dust', 'two real roots'], null: ['on the cone', 'a double root'],
@@ -54,6 +59,10 @@ export class Inspector {
     $('i-delta').textContent = `Δ = ${minus(D)}`;
     $('i-root-label').textContent = kind === 'exterior' ? 'roots' : 'root';
     $('i-root').textContent = root;
+    // Which orbit a star is in, how deep it lies (the Stars setting bounds a + c), and a dust point's own plane.
+    row('i-class', F.classText(a, b, c));
+    row('i-depth', kind === 'upper' ? String(a + c) : null);
+    row('i-plane', kind === 'exterior' ? Pl.planeEquation(Pl.primitiveBig(e)) : null);
     $('i-compact').textContent = `Δ = ${minus(D)} · ${root}`;
     $('i-note').textContent = this.notes(e, kind, D).join(' ');
     const acts = $('i-actions');
@@ -89,7 +98,9 @@ export class Inspector {
       const drawn = plane && A * b - B * a === 0n && B * c - C * b === 0n && A * c - C * a === 0n;
       out.push(drawn ? 'Its plane is drawn: the geodesic between its roots.' : 'Select it to draw its plane: the geodesic between its roots.');
     }
-    if (plane && kind !== 'exterior' && Pl.onPlane(plane.normal, coef)) out.push(`On the plane ${Pl.planeEquation(plane.normal)}.`);
+    if (plane && kind !== 'exterior' && Pl.onPlane(plane.normal, coef)) {
+      out.push(`On the plane ${Pl.planeEquation(plane.normal)}: the geodesic with ends ${F.rootText(...plane.normal)}.`);
+    }
     return out;
   }
 }

@@ -155,6 +155,18 @@ test('reduce undoes long words in T and S, far past 2⁵³', () => {
   assert.deepEqual(F.reduce(13, 20, 34), [13n, -6n, 27n]);
 });
 
+test('class text: content and sign times the reduced primitive form', () => {
+  assert.equal(F.classText(13, 20, 34), '13x² − 6x + 27');
+  assert.equal(F.classText(2, 3, 3), '2x² + x + 2');
+  assert.equal(F.classText(2, 2, 2), '2(x² + x + 1)');
+  assert.equal(F.classText(-1, 0, -1), '−(x² + 1)');
+  assert.equal(F.classText(-26, -40, -68), '−2(13x² − 6x + 27)');
+  assert.equal(F.classText(1n, 94906267n, 2251799878968823n), 'x² + x + 1');
+  assert.equal(F.classText(1, 0, -1), null);
+  assert.equal(P.planeEquation([1n, 0n, -1n]), '2a − 2c = 0');
+  assert.equal(P.planeEquation([10n ** 20n, 1n, 0n]), 'b − 200000000000000000000c = 0');
+});
+
 test('ρ(g) moves roots by g and preserves Δ', () => {
   const g = G.normalize([3, 1, 1, 2]);
   const z = G.act(g, { x: 0, y: 1 });

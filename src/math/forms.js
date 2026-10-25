@@ -213,6 +213,18 @@ export function reduce(a, b, c) {
 }
 const floorDiv = (x, y) => (x % y < 0n ? x / y - 1n : x / y);   // y > 0; BigInt division truncates toward 0
 
+/**
+ * A definite form's class: the reduced form of its orbit, written as sign and content times the reduced primitive
+ * form, "13x² − 6x + 27", "2(x² + x + 1)", "−(x² + 1)"; null unless Δ < 0.
+ */
+export function classText(a, b, c) {
+  const r = reduce(a, b, c);
+  if (!r) return null;
+  const s = r[0] < 0n ? -1n : 1n, k = content(...r), g = r.map(x => x / (s * k));
+  const factor = (s < 0n ? '−' : '') + (k > 1n ? k : '');
+  return factor ? `${factor}(${polynomialText(...g)})` : polynomialText(...g);
+}
+
 /** Reduced positive definite forms of discriminant −k: |b| ≤ a ≤ c, b ≥ 0 if |b| = a or a = c, primitive. */
 export function reducedForms(k) {
   const out = [];
