@@ -330,15 +330,17 @@ function animateG(to, done) {
 function absorb() {
   const gamma = state.g.map(Math.round);
   if (!G.isIntegral(gamma) || gamma.every((x, i) => x === G.identity[i])) { setG([...G.identity]); return; }
-  const move = p => G.pushforwardExact(gamma, p).map(Number);
-  const before = state.selected;
-  if (state.selected) state.selected = move(state.selected);
-  // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one.
-  if (state.plane) { const p = Pl.planeFromNormal(move(state.plane.normal)); state.plane = p.error ? null : p; }
+  // The exact label lives in BigInt (state.selectedExact, read by the inspector); state.selected is its Number copy for
+  // drawing, picking and the hash, inexact only after dozens of relabels.
+  const before = state.selected && (state.selectedExact ?? state.selected);
+  if (before) { state.selectedExact = G.pushforwardExact(gamma, before); state.selected = state.selectedExact.map(Number); }
+  // A normal moved past 2⁵³ can no longer be labeled exactly; drop the plane rather than draw a wrong one. It stays in
+  // BigInt until planeFromNormal checks it: rounded to doubles first, it could pass as some other plane.
+  if (state.plane) { const p = Pl.planeFromNormal(G.pushforwardExact(gamma, state.plane.normal)); state.plane = p.error ? null : p; }
   writeHash();   // a shared link names the relabeled star, the one now ringed
   stars.absorb(gamma);   // the buffer's points get the same new labels, so nothing on screen changes
   setG([...G.identity]);
-  flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selected)}` : `γ = ${matrixText(gamma)}`);
+  flash(before ? `γ = ${matrixText(gamma)} · ${tupleText(before)} ↦ ${tupleText(state.selectedExact)}` : `γ = ${matrixText(gamma)}`);
   if (!inspector.el.hidden) inspector.show(state.selected);
 }
 /** With Snap on, glide an off-lattice g to the nearest γ and relabel by it; not inside, where g is where you stand. */
@@ -388,7 +390,8 @@ function pickAt(e, radiusPx) {
 
 let skyRoot = null, hoverEvent = null, pressG = null;
 new PointerInput(canvas, {
-  start: () => { rig.stopInertia(); pressG = state.g; },
+  // A press that stops a glide (a click on the sky or pane cancels it) has moved g as surely as a drag.
+  start: () => { rig.stopInertia(); pressG = gAnim ? null : state.g; },
   classify: e => {
     if (pane.contains(e)) {
       skyRoot = e.shiftKey ? null : pane.rootAt(e);
@@ -505,7 +508,7 @@ function clearShell() { state.shellK = 0; shell.visible = false; dirty = true; }
 /** Select an exact identity. `quiet` (used by the tour) rings it without opening the inspector or cutting planes. */
 function select(coef, { quiet = false } = {}) {
   clearTimeout(sceneSelect);   // any selection supersedes one the scene was about to make
-  state.selected = coef;
+  state.selected = coef; state.selectedExact = null;
   dirty = true;
   writeHash();
   if (!coef) { inspector.hide(); return; }
@@ -591,6 +594,7 @@ function leaveInside() {
 function goInside(pose = {}) {
   if (rig.mode === 'inside') { rig.go('inside', pose, 0.8); return; }
   fade(() => {
+    gAnim = null;   // a T or S still gliding would carry g off the triangle's center
     setView('inside');
     setWorldFrame(true);
     Object.entries({ morph: 2, floor: 1, cone: 0, screen: 0, depthOn: 1, a_upper: 1, a_lower: 0, a_exterior: 0, a_null: 1 })
