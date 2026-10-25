@@ -51,21 +51,25 @@ export default {
       /** Cuts instead of moves (under a dip to black): the app's reduced-motion path. */
       instant(on) { S.rig.reducedMotion = S.tweens.reducedMotion = on; },
       ease: u => u * u * (3 - 2 * u),
-      /** Ease the app's Brightness, β and Star size from a to b as u goes 0 → 1. */
+      /** One factor on every exposure below, to retune the whole film at once after a change to the app's look. */
+      gain: 1,
+      /** Set the app's Brightness, β and Star size. */
+      set(o) { film.look({ ...o, exposure: (o.exposure ?? 1) * R.gain }); },
+      /** Ease Brightness, β and Star size from a to b as u goes 0 → 1. */
       look(a, b, u) {
         const e = R.ease(u), mix = k => (a[k] ?? 1) + ((b[k] ?? 1) - (a[k] ?? 1)) * e;
-        film.look({ exposure: mix('exposure'), beta: mix('beta'), size: mix('size') });
+        R.set({ exposure: mix('exposure'), beta: mix('beta'), size: mix('size') });
       },
     };
     R.split(false);
     api.renderChapter(2);
     api.select(null);
-    film.look({ exposure: 4, beta: 0.3 });
+    R.set({ exposure: 4 / 2.2, beta: 0.3 });
   },
 
   cues: [
     // I · the lattice (split)
-    { t: 7.1, run: ({ api, film }) => { R.instant(true); R.split(true); api.renderChapter(0); film.look({ exposure: 3, beta: 0.35 }); film.ui({ inspector: true }); } },
+    { t: 7.1, run: ({ api, film }) => { R.instant(true); R.split(true); api.renderChapter(0); R.set({ exposure: 3, beta: 0.35 }); film.ui({ inspector: true }); } },
     { t: 7.6, run: () => R.instant(false) },
     // II · the stars
     { t: 18.0, run: ({ api }) => { api.renderChapter(1); R.slow(3.2); } },
@@ -92,7 +96,7 @@ export default {
       R.instant(true); api.setStyle(1); R.split(true); api.renderChapter(5);
       api.goOutside({ radius: 22, theta: 0.7, phi: 1.15, target: [0, 6, 0] });
       api.setMorph(0, 0); S.tweens.set('screen', 0, 0);
-      film.look({ exposure: 2, beta: 0.45, size: 1 }); film.ui({ readout: true });
+      R.set({ exposure: 2, beta: 0.45, size: 1 }); film.ui({ readout: true });
     } },
     { t: 86.8, run: () => R.instant(false) },
     { t: 96.6, run: ({ api }) => api.applyIntegral('T') },
@@ -101,7 +105,7 @@ export default {
     { t: 102.0, run: ({ api }) => { api.renderChapter(7); R.slow(3.0); } },
     // IX · inside (full width)
     { t: 112.3, run: ({ api, film }) => {
-      R.instant(true); R.split(false); film.ui({ readout: false, hud: true }); film.look({ exposure: 1.5, beta: 0.55, size: 1 }); api.renderChapter(8);
+      R.instant(true); R.split(false); film.ui({ readout: false, hud: true }); R.set({ exposure: 1.5, beta: 0.55, size: 1 }); api.renderChapter(8);
     } },
     { t: 113.0, run: () => R.instant(false) },
     { t: 116.0, run: ({ film }) => film.key('w', true) },
@@ -117,18 +121,19 @@ export default {
     // II: the deep field fills the roots pane at once, so bring the brightness down before it arrives; then a slow drift.
     { t0: 17.0, t1: 17.95, run: (c, u) => R.look({ exposure: 3, beta: 0.35 }, { exposure: 2, beta: 0.45 }, u) },
     { t0: 21.3, t1: 31.6, run: ({ rig }, u) => { if (!rig.anim) { rig.outside.theta = 0.6 + 0.3 * u; rig.apply(); } } },
-    // III: the sky brightens as you arrive at the origin. The outside vantage draws 2.2× brighter than the
-    // origin (app.js syncUniforms), so each change of vantage starts its ramp where the picture already was.
-    { t0: 32.2, t1: 35.2, run: (c, u) => R.look({ exposure: 3, beta: 0.45 }, { exposure: 4, beta: 0.3 }, u) },
+    // III: the sky brightens as you arrive at the origin. On a screen the origin and outside vantages draw at the
+    // same 2.2× gain (app.js syncUniforms); the origin shots were first tuned at 1×, hence their "/ 2.2", and each
+    // ramp starts where the picture already was.
+    { t0: 32.2, t1: 35.2, run: (c, u) => R.look({ exposure: 2, beta: 0.45 }, { exposure: 4 / 2.2, beta: 0.3 }, u) },
     // IV: stepping outside, the screen disk is seen whole; bring the exposure down with it.
     // Points on the screen are drawn 1.4× brighter (app.js syncUniforms); compensate so the slide looks like nothing.
-    { t0: 48.8, t1: 50.6, run: (c, u) => R.look({ exposure: 4, beta: 0.3 }, { exposure: 2.9, beta: 0.3 }, u) },
+    { t0: 48.8, t1: 50.6, run: (c, u) => R.look({ exposure: 4 / 2.2, beta: 0.3 }, { exposure: 2.9 / 2.2, beta: 0.3 }, u) },
     { t0: 51.6, t1: 54.6, run: (c, u) => R.look({ exposure: 2.9 / 2.2, beta: 0.3 }, { exposure: 1.8, beta: 0.45 }, u) },
     { t0: 54.6, t1: 60.0, run: ({ rig }, u) => { if (!rig.anim) { rig.outside.theta = 0.9 + 0.12 * u; rig.apply(); } } },
-    { t0: 60.0, t1: 62.4, run: (c, u) => R.look({ exposure: 4, beta: 0.45 }, { exposure: 2.8, beta: 0.38 }, u) },
+    { t0: 60.0, t1: 62.4, run: (c, u) => R.look({ exposure: 1.8, beta: 0.45 }, { exposure: 2.8 / 2.2, beta: 0.38 }, u) },
     // V: the Poincaré disk concentrates the light toward its center; then the half-plane, seen from below.
-    { t0: 64.0, t1: 66.4, run: (c, u) => R.look({ exposure: 2.8, beta: 0.38 }, { exposure: 2.2, beta: 0.45 }, u) },
-    { t0: 67.6, t1: 70.6, run: (c, u) => R.look({ exposure: 2.2 / 2.2, beta: 0.45 }, { exposure: 1.6, beta: 0.5 }, u) },
+    { t0: 64.0, t1: 66.4, run: (c, u) => R.look({ exposure: 2.8 / 2.2, beta: 0.38 }, { exposure: 1, beta: 0.45 }, u) },
+    { t0: 67.6, t1: 70.6, run: (c, u) => R.look({ exposure: 1, beta: 0.45 }, { exposure: 1.6, beta: 0.5 }, u) },
     // Disks fill area where points did not: start dim so the switch is level, and let them come up.
     { t0: 73.8, t1: 75.6, run: (c, u) => R.look({ exposure: 0.6, beta: 0.5, size: 1 }, { exposure: 1.3, beta: 0.55, size: 1.5 }, u) },
     // Ford circles: glide down to the real axis between 0 and 1.
