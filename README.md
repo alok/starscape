@@ -33,7 +33,7 @@ On a wide screen the roots pane sits beside the lattice, as in Stange's viewer. 
 
 ## Points, color and brightness
 
-By default every point is drawn the same tiny size, because these are points of a lattice. **Color** is the invariant `|Δ|`, read as photon energy: violet for the simplest numbers, red as the discriminant grows, on Stange's fixed logarithmic range 3…240. The light cone is white. **Brightness** is the light you would receive standing at the origin, `(4/|v|²)^β`. Settings switch to disks sized by hyperbolic radius, as in her viewer, and offer other palettes. See [the guide](docs/GUIDE.md) for the derivations.
+By default every point is drawn the same tiny size, because these are points of a lattice. **Color** is the invariant `|Δ|`, read as photon energy: violet for the simplest numbers, red as the discriminant grows, on Stange's fixed logarithmic range 3…240. The light cone is white. **Brightness** is the light you would receive standing at the origin, `(4/|v|²)^β`. Settings switch to disks sized by hyperbolic radius, as in her viewer, though past a few pixels ours grow only like the square root of that size; they also offer other palettes. See [the guide](docs/GUIDE.md) for the derivations.
 
 ## Run it
 
