@@ -71,6 +71,9 @@ void main() {
   // its root, fade away (as in Stange's pane) instead of mixing their own colors into it. The null multiples
   // k(qx − p)² stay: drawn as disks they nest inside their Ford circle.
   if (meta.y < 0.5) alpha *= uMultiples * (kind == 0 ? 1.0 - smoothstep(0.0, 1.0, m) : 1.0);
+  // The same for the lower nappe: −f has f's root, so in a picture it would only draw the class twice (doubling the
+  // rings at 0 and ±1, tinting stars with the lower cone's color).
+  if (kind != 2 && a + c < 0.0) alpha *= 1.0 - smoothstep(0.0, 1.0, m);
 
   vec3 v = uRho * v0;
   float Y = v.y;
@@ -372,6 +375,7 @@ export class StarField {
     const ka = [u.uKindAlpha.value.x, u.uKindAlpha.value.y, u.uKindAlpha.value.z, u.uKindAlpha.value.w][kind];
     if (present * ka < 0.05) return false;
     if (!L.primitive[i] && u.uMultiples.value * (kind === 0 ? 1 - smoothstep(0, 1, morph) : 1) < 0.05) return false;
+    if (kind !== 2 && a + c < 0 && 1 - smoothstep(0, 1, morph) < 0.05) return false;
     if (kind === 2 && morph > 0.5) return false;
     if (kind === 3 && this.stage(a, b, c, r, morph).hidden) return false;
     if (u.uShell.value > 0.5 && !(kind === 0 && Math.abs(Math.abs(b * b - 4 * a * c) - u.uShell.value) < 0.5)) return false;
