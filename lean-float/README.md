@@ -27,18 +27,11 @@ and an add into one rounding; every step here is exact anyway. WebGL's GLSL ES 3
 
 ## Checking it
 
-This package pins FloatLib v2.0.0 (which brings Mathlib v4.35.0):
+This package pins [FloatLib](https://github.com/lean-dojo/FloatLib) @ `71a3d7ff` on Lean `v4.36.0` (which brings Mathlib `v4.36.0`):
 
 ```bash
 lake exe cache get   # Mathlib's prebuilt oleans
 lake build           # builds FloatLib, then StarscapeFloat
 ```
 
-With FloatLib already built in another workspace at the same revision (e.g. `~/softmax-float`), checking the one file
-takes seconds:
-
-```bash
-cd ~/softmax-float && lake env lean ~/starscape/lean-float/StarscapeFloat.lean
-```
-
-That second route is how it was checked on 2026-10-24; the `lake build` route was not run end to end.
+Verified end to end with `lake build` (4,313 jobs; all four theorems depend only on `[propext, Classical.choice, Quot.sound]`, zero `sorry`).

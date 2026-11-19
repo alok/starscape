@@ -1,11 +1,11 @@
 name = "starscape-float"
 defaultTargets = ["StarscapeFloat"]
 
-# FloatLib v2.0.0 (lean-dojo/FloatLib @ 51e6940), the revision ~/softmax-float pins; it brings Mathlib v4.35.0.
+# FloatLib (lean-dojo/FloatLib @ 71a3d7ff), bringing Mathlib v4.36.0.
 [[require]]
 name = "floatlib"
 git = "https://github.com/lean-dojo/FloatLib"
-rev = "51e6940eaa4014691be91f663a49ca7239ca0c07"
+rev = "71a3d7ff211b28bc3d27673b70b90644941a5fff"
 
 [[lean_lib]]
 name = "StarscapeFloat"
